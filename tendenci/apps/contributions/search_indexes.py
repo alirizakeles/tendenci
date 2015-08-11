@@ -1,10 +1,12 @@
-from haystack import site
+from haystack import indexes
 
 from tendenci.apps.contributions.models import Contribution
-from tendenci.core.perms.indexes import TendenciBaseSearchIndex
+from tendenci.apps.perms.indexes import TendenciBaseSearchIndex
 
 
-class ContributionIndex(TendenciBaseSearchIndex):
-   pass
+class ContributionIndex(TendenciBaseSearchIndex, indexes.Indexable):
 
-# site.register(Contribution, ContributionIndex)
+    @classmethod
+    def get_model(self):
+        return Contribution
+#

@@ -21,13 +21,13 @@ from django.contrib.sites.models import Site
 from django.contrib.auth.models import User
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.contenttypes.models import ContentType
-from django.contrib.contenttypes import generic
+from django.contrib.contenttypes.fields import GenericForeignKey
 from django.utils.translation import ugettext_lazy as _
 from django.utils.translation import ugettext, get_language, activate
 from django.utils.safestring import mark_safe
 from django.utils.html import escape
 
-from tendenci.core.site_settings.utils import get_setting
+from tendenci.apps.site_settings.utils import get_setting
 
 QUEUE_ALL = getattr(settings, "NOTIFICATION_QUEUE_ALL", False)
 
@@ -51,6 +51,7 @@ class NoticeType(models.Model):
     class Meta:
         verbose_name = _("notice type")
         verbose_name_plural = _("notice types")
+        app_label = 'notifications'
 
 
 # if this gets updated, the create() method below needs to be as well...
@@ -73,12 +74,13 @@ class NoticeSetting(models.Model):
     user = models.ForeignKey(User, verbose_name=_('user'))
     notice_type = models.ForeignKey(NoticeType, verbose_name=_('notice type'))
     medium = models.CharField(_('medium'), max_length=1, choices=NOTICE_MEDIA)
-    send = models.BooleanField(_('send'))
+    send = models.BooleanField(_('send'), default=False)
 
     class Meta:
         verbose_name = _("notice setting")
         verbose_name_plural = _("notice settings")
         unique_together = ("user", "notice_type", "medium")
+        app_label = 'notifications'
 
 
 def get_notification_setting(user, notice_type, medium, *args, **kwargs):
@@ -137,9 +139,15 @@ class Notice(models.Model):
     added = models.DateTimeField(_('added'), default=datetime.datetime.now)
     unseen = models.BooleanField(_('unseen'), default=True)
     archived = models.BooleanField(_('archived'), default=False)
-    on_site = models.BooleanField(_('on site'))
+    on_site = models.BooleanField(_('on site'), default=False)
 
     objects = NoticeManager()
+    
+    class Meta:
+        ordering = ["-added"]
+        verbose_name = _("notice")
+        verbose_name_plural = _("notices")
+        app_label = 'notifications'
 
     def __unicode__(self):
         return self.message
@@ -161,11 +169,6 @@ class Notice(models.Model):
             self.save()
         return unseen
 
-    class Meta:
-        ordering = ["-added"]
-        verbose_name = _("notice")
-        verbose_name_plural = _("notices")
-
     def get_absolute_url(self):
         return ("notification_notice", [str(self.pk)])
     get_absolute_url = models.permalink(get_absolute_url)
@@ -177,6 +180,9 @@ class NoticeQueueBatch(models.Model):
     Denormalized data for a notice.
     """
     pickled_data = models.TextField()
+
+    class Meta:
+        app_label = 'notifications'
 
 
 class NoticeEmail(models.Model):
@@ -193,6 +199,9 @@ class NoticeEmail(models.Model):
     content = models.TextField(blank=True)
     content_type = models.CharField(max_length=10)
     date_sent = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = 'notifications'
 
     def __unicode__(self):
         return self.title
@@ -614,7 +623,7 @@ class ObservedItem(models.Model):
 
     content_type = models.ForeignKey(ContentType)
     object_id = models.PositiveIntegerField()
-    observed_object = generic.GenericForeignKey('content_type', 'object_id')
+    observed_object = GenericForeignKey('content_type', 'object_id')
 
     notice_type = models.ForeignKey(NoticeType, verbose_name=_('notice type'))
 
@@ -629,6 +638,7 @@ class ObservedItem(models.Model):
         ordering = ['-added']
         verbose_name = _('observed item')
         verbose_name_plural = _('observed items')
+        app_label = 'notifications'
 
     def send_notice(self):
         send([self.user], self.notice_type.label,

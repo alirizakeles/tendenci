@@ -22,17 +22,17 @@ from django.http import Http404
 from django.utils.encoding import force_unicode
 from django.utils.translation import ugettext_lazy as _
 
-from tendenci.core.base.http import Http403
-from tendenci.core.site_settings.utils import get_setting
-from tendenci.core.perms.decorators import superuser_required
-from tendenci.core.perms.utils import get_notice_recipients, has_perm, get_query_filters, has_view_perm
-from tendenci.core.imports.forms import ImportForm
-from tendenci.core.imports.models import Import
-from tendenci.core.imports.utils import extract_from_excel, render_excel
+from tendenci.apps.base.http import Http403
+from tendenci.apps.site_settings.utils import get_setting
+from tendenci.apps.perms.decorators import superuser_required
+from tendenci.apps.perms.utils import get_notice_recipients, has_perm, get_query_filters, has_view_perm
+from tendenci.apps.imports.forms import ImportForm
+from tendenci.apps.imports.models import Import
+from tendenci.apps.imports.utils import extract_from_excel, render_excel
 from tendenci.apps.entities.models import Entity
-from tendenci.core.event_logs.models import EventLog
-from tendenci.core.event_logs.utils import request_month_range, day_bars
-from tendenci.core.event_logs.views import event_colors
+from tendenci.apps.event_logs.models import EventLog
+from tendenci.apps.event_logs.utils import request_month_range, day_bars
+from tendenci.apps.event_logs.views import event_colors
 from tendenci.apps.user_groups.models import Group, GroupMembership
 from tendenci.apps.user_groups.forms import GroupForm, GroupMembershipForm, GroupSearchForm
 from tendenci.apps.user_groups.forms import GroupForm, GroupMembershipForm, MessageForm
@@ -41,7 +41,7 @@ from tendenci.apps.user_groups.forms import GroupPermissionForm, GroupMembership
 #from tendenci.apps.user_groups.importer.tasks import ImportSubscribersTask
 from tendenci.apps.user_groups.importer.utils import user_groups_import_process
 from tendenci.apps.notifications import models as notification
-from tendenci.core.base.utils import get_deleted_objects
+from tendenci.apps.base.utils import get_deleted_objects
 
 
 def search(request, template_name="user_groups/search.html"):
@@ -87,6 +87,13 @@ def group_detail(request, group_slug, template_name="user_groups/detail.html"):
     if not has_view_perm(request.user,'user_groups.view_group',group):
         raise Http403
 
+    if group in request.user.profile.get_groups():
+        is_group_member = True
+        gm = GroupMembership.objects.get(group=group, member=request.user)
+    else:
+        is_group_member = False
+        gm = None
+
     EventLog.objects.log(instance=group)
 
     groupmemberships = GroupMembership.objects.filter(
@@ -105,7 +112,7 @@ def message(request, group_slug, template_name='user_groups/message.html'):
     """
     Send a message to the group
     """
-    from tendenci.core.emails.models import Email
+    from tendenci.apps.emails.models import Email
 
     group = get_object_or_404(Group, slug=group_slug)
     EventLog.objects.log(instance=group)
@@ -308,6 +315,9 @@ def group_membership_self_add(request, slug, user_id):
         group_membership.save()
 
         EventLog.objects.log(instance=group_membership)
+
+        if group_membership.is_newsletter_subscribed:
+            group_membership.subscribe_to_newsletter()
 
         messages.add_message(request, messages.SUCCESS, _('Successfully added yourself to group %(grp)s' % {'grp':group}))
     else:
@@ -598,7 +608,7 @@ def group_members_export_download(request, group_slug, export_target, identifier
     if not default_storage.exists(export_path):
         raise Http404
 
-    response = HttpResponse(mimetype='text/csv')
+    response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename=membership_export_%s' % file_name
     response.content = default_storage.open(export_path).read()
     return response
@@ -647,7 +657,7 @@ def group_member_export(request, group_slug):
     # Use custom sql to fetch the rows because we need to
     # populate the user profiles information and you
     # cannot do that with django's ORM without using
-    # get_profile() for each user query
+    # profile for each user query
     # pulling 13,000 group members can be done in one
     # query using Django's ORM but then you need
     # 13,000 individual queries :(
@@ -682,7 +692,7 @@ def group_member_export(request, group_slug):
                     style = default_style
                 sheet.write(row, col, val, style=style)
 
-    response = HttpResponse(mimetype='application/vnd.ms-excel')
+    response = HttpResponse(content_type='application/vnd.ms-excel')
     response['Content-Disposition'] = 'attachment; filename=group_%s_member_export.xls' % group.pk
     book.save(response)
     return response
@@ -746,7 +756,7 @@ def group_subscriber_export(request, group_slug):
 
         sheet.write(row, col, val, style=style)
 
-    response = HttpResponse(mimetype='application/vnd.ms-excel')
+    response = HttpResponse(content_type='application/vnd.ms-excel')
     response['Content-Disposition'] = 'attachment; filename=group_%s_subscriber_export.xls' % group.pk
     book.save(response)
     return response
@@ -807,7 +817,7 @@ def group_all_export(request, group_slug):
     # Use custom sql to fetch the rows because we need to
     # populate the user profiles information and you
     # cannot do that with django's ORM without using
-    # get_profile() for each user query
+    # profile for each user query
     # pulling 13,000 group members can be done in one
     # query using Django's ORM but then you need
     # 13,000 individual queries :(
@@ -883,7 +893,7 @@ def group_all_export(request, group_slug):
 
         sheet.write(row, col, val, style=style)
 
-    response = HttpResponse(mimetype='application/vnd.ms-excel')
+    response = HttpResponse(content_type='application/vnd.ms-excel')
     response['Content-Disposition'] = 'attachment; filename=group_%s_all_export.xls' % group.pk
     book.save(response)
     return response
@@ -1044,3 +1054,54 @@ def import_download_template(request, file_ext='.csv'):
     data_row_list = []
 
     return render_excel(filename, import_field_list, data_row_list, file_ext)
+
+# Newsletter stuff here:
+@login_required
+def subscribe_to_newsletter_interactive(request, group_slug):
+    group = get_object_or_404(Group, slug=group_slug)
+
+    groupmembership = get_object_or_404(GroupMembership,
+                        group=group,
+                        member=request.user,
+                        status=True,
+                        status_detail='active')
+
+    if groupmembership.subscribe_to_newsletter():
+        messages.success(request, _('Successfully subscribed to Newsletters.'))
+
+    return redirect(reverse('group.detail', kwargs={'group_slug': group_slug}))
+
+
+@login_required
+def unsubscribe_to_newsletter_interactive(request, group_slug):
+    group = get_object_or_404(Group, slug=group_slug)
+
+    groupmembership = get_object_or_404(GroupMembership,
+                        group=group,
+                        member=request.user,
+                        status=True,
+                        status_detail='active')
+
+    if groupmembership.unsubscribe_to_newsletter():
+        messages.success(request, _('Successfully unsubscribed to Newsletters.'))
+
+    return redirect(reverse('group.detail', kwargs={'group_slug': group_slug}))
+
+
+def subscribe_to_newsletter_noninteractive(request, group_slug):
+    pass
+
+
+def unsubscribe_to_newsletter_noninteractive(request, group_slug, newsletter_key):
+    group = get_object_or_404(Group, slug=group_slug)
+
+    groupmembership = get_object_or_404(GroupMembership,
+                        group=group,
+                        status=True,
+                        status_detail='active',
+                        newsletter_key=newsletter_key)
+    if not groupmembership.unsubscribe_to_newsletter():
+        raise Http404
+
+    return render(request, 'user_groups/newsletter_unsubscribe.html')
+

@@ -1,37 +1,43 @@
-# encoding: utf-8
-import datetime
-from south.db import db
-from south.v2 import SchemaMigration
-from django.db import models
+# -*- coding: utf-8 -*-
+from __future__ import unicode_literals
 
-class Migration(SchemaMigration):
-
-    def forwards(self, orm):
-        
-        # Adding model 'DashboardStat'
-        db.create_table('dashboard_dashboardstat', (
-            ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
-            ('key', self.gf('django.db.models.fields.CharField')(max_length=255)),
-            ('value', self.gf('django.db.models.fields.TextField')()),
-            ('create_dt', self.gf('django.db.models.fields.DateTimeField')(auto_now_add=True, blank=True)),
-        ))
-        db.send_create_signal('dashboard', ['DashboardStat'])
+from django.db import models, migrations
 
 
-    def backwards(self, orm):
-        
-        # Deleting model 'DashboardStat'
-        db.delete_table('dashboard_dashboardstat')
+class Migration(migrations.Migration):
 
+    dependencies = [
+    ]
 
-    models = {
-        'dashboard.dashboardstat': {
-            'Meta': {'ordering': "('-create_dt',)", 'object_name': 'DashboardStat'},
-            'create_dt': ('django.db.models.fields.DateTimeField', [], {'auto_now_add': 'True', 'blank': 'True'}),
-            'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'key': ('django.db.models.fields.CharField', [], {'max_length': '255'}),
-            'value': ('django.db.models.fields.TextField', [], {})
-        }
-    }
-
-    complete_apps = ['dashboard']
+    operations = [
+        migrations.CreateModel(
+            name='DashboardStat',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('value', models.TextField()),
+                ('create_dt', models.DateTimeField(auto_now_add=True)),
+            ],
+            options={
+                'ordering': ('-create_dt',),
+            },
+        ),
+        migrations.CreateModel(
+            name='DashboardStatType',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('position', models.IntegerField(default=0, null=True, verbose_name='Position', blank=True)),
+                ('name', models.CharField(unique=True, max_length=255)),
+                ('description', models.TextField(blank=True)),
+                ('displayed', models.BooleanField(default=True)),
+            ],
+            options={
+                'ordering': ('position',),
+                'abstract': False,
+            },
+        ),
+        migrations.AddField(
+            model_name='dashboardstat',
+            name='key',
+            field=models.ForeignKey(to='dashboard.DashboardStatType'),
+        ),
+    ]

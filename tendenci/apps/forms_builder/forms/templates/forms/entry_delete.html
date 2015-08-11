@@ -9,10 +9,9 @@
 <link rel="stylesheet" href="{{ STATIC_URL }}css/forms-builder.css">
 {% endblock %}
 
-{% block body %}
+{% block content %}
 
 <div class="t">
-    {% forms_nav request.user %}
     <h1>{% firstof MODULE_FORMS_LABEL trans 'Form' %} {% trans "Entry Delete" %}</h1>
 
     <div class="form-builder-wrap">
@@ -27,7 +26,7 @@
         </h3>
 
         <div class="delete-form">
-            <form action="{% url form_entry_delete entry.pk %}" method="post">{% csrf_token %}
+            <form action="{% url "form_entry_delete" entry.pk %}" method="post">{% csrf_token %}
                 <input type="submit" value="{% trans 'Delete Entry' %}" />
             </form>
         </div>

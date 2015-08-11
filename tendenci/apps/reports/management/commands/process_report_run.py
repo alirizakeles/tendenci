@@ -5,7 +5,7 @@ from django.db.models import Sum, Q
 from django.template import TemplateDoesNotExist, Context
 from django.template.loader import get_template
 
-from johnny.cache import invalidate
+#from johnny.cache import invalidate
 
 from tendenci.apps.reports.utils import get_ct_nice_name
 
@@ -23,15 +23,15 @@ class Command(BaseCommand):
         run.status = "error"
         run.complete_dt = datetime.now()
         run.save()
-        invalidate('reports_run')
+        #invalidate('reports_run')
 
     def report_output_invoices(self, run):
-        from tendenci.addons.corporate_memberships.models import CorpMembership
+        from tendenci.apps.corporate_memberships.models import CorpMembership
         try:
             from donations.models import Donation
         except:
             Donation = None
-        from tendenci.addons.memberships.models import (MembershipType,
+        from tendenci.apps.memberships.models import (MembershipType,
             MembershipSet, MembershipDefault)
         from tendenci.apps.invoices.models import Invoice
         from tendenci.apps.reports.models import CONFIG_OPTIONS
@@ -145,13 +145,13 @@ class Command(BaseCommand):
             'totals': totals,
             'run': run}))
 
+    def add_arguments(self, parser):
+        parser.add_argument('run_id', type=int)
+
     def handle(self, *args, **options):
         from tendenci.apps.reports.models import Run
-        try:
-            run_id = args[0]
-        except Exception:
-            raise CommandError('You need to pass a report run as an argument.')
-
+        
+        run_id = options['run_id']
         try:
             run = Run.objects.get(pk=run_id)
         except (Run.DoesNotExist, Run.MultipleObjectsReturned):
@@ -161,7 +161,7 @@ class Command(BaseCommand):
             run.status = "running"
             run.start_dt = datetime.now()
             run.save()
-            invalidate('reports_run')
+            #invalidate('reports_run')
 
             print "running report"
 
@@ -177,7 +177,7 @@ class Command(BaseCommand):
 
             run.complete_dt = datetime.now()
             run.save()
-            invalidate('reports_run')
+            #invalidate('reports_run')
 
         else:
             print "Report is already running"

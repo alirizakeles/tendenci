@@ -20,8 +20,8 @@ various steps of the user-signup process.
 """
 
 
-from django.conf.urls.defaults import *
-from django.views.generic.simple import direct_to_template
+from django.conf.urls import *
+from django.views.generic import TemplateView
 from django.contrib.auth import views as auth_views
 
 from tendenci.apps.registration.views import activate
@@ -53,9 +53,9 @@ urlpatterns = patterns('',
                        url(r'^password/reset/$',
                            auth_views.password_reset,
                            name='auth_password_reset'),
-                       url(r'^password/reset/confirm/(?P<uidb36>[0-9A-Za-z]+)-(?P<token>.+)/$',
-                           auth_views.password_reset_confirm,
-                           name='auth_password_reset_confirm'),
+#                        url(r'^password/reset/confirm/(?P<uidb64>[0-9A-Za-z_\-]+)/(?P<token>[0-9A-Za-z]{1,13}-[0-9A-Za-z]{1,20})/$',
+#                            auth_views.password_reset_confirm,
+#                            name='auth_password_reset_confirm'),
                        url(r'^password/reset/complete/$',
                            auth_views.password_reset_complete,
                            name='auth_password_reset_complete'),
@@ -66,7 +66,6 @@ urlpatterns = patterns('',
                            register,
                            name='registration_register'),
                        url(r'^register/complete/$',
-                           direct_to_template,
-                           {'template': 'registration/registration_complete.html'},
+                           TemplateView.as_view(template_name='registration/registration_complete.html'),
                            name='registration_complete'),
                        )

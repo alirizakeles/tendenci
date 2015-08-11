@@ -5,11 +5,13 @@ from django.contrib.auth.models import User, Permission
 from django.utils.translation import ugettext_lazy as _
 from django.template.defaultfilters import slugify
 from django.db.utils import IntegrityError
+from django.core.urlresolvers import reverse
 
-from tendenci.core.base.fields import SlugField
-from tendenci.core.perms.models import TendenciBaseModel
+from tendenci.apps.base.fields import SlugField
+from tendenci.apps.perms.models import TendenciBaseModel
 from tendenci.apps.user_groups.managers import GroupManager
 from tendenci.apps.entities.models import Entity
+from tendenci.apps.site_settings.utils import get_setting
 
 
 class Group(TendenciBaseModel):
@@ -25,12 +27,12 @@ class Group(TendenciBaseModel):
                                          ('system_generated', _('System Generated'))
                                             ), default='distribution')
     email_recipient = models.CharField(_('Recipient Email'), max_length=255, blank=True)
-    show_as_option = models.BooleanField(_('Display Option'), default=1, blank=True)
-    allow_self_add = models.BooleanField(_('Allow Self Add'), default=1)
-    allow_self_remove = models.BooleanField(_('Allow Self Remove'), default=1)
-    sync_newsletters = models.BooleanField(_('Sync for newsletters'), default=1)
+    show_as_option = models.BooleanField(_('Display Option'), default=True, blank=True)
+    allow_self_add = models.BooleanField(_('Allow Self Add'), default=True)
+    allow_self_remove = models.BooleanField(_('Allow Self Remove'), default=True)
+    sync_newsletters = models.BooleanField(_('Sync for newsletters'), default=True)
     description = models.TextField(blank=True)
-    auto_respond = models.BooleanField(_('Auto Responder'), default=0)
+    auto_respond = models.BooleanField(_('Auto Responder'), default=False)
     auto_respond_priority = models.FloatField(_('Priority'), blank=True, default=0)
     notes = models.TextField(blank=True)
     members = models.ManyToManyField(User, through='GroupMembership')
@@ -46,6 +48,7 @@ class Group(TendenciBaseModel):
         verbose_name = _("Group")
         verbose_name_plural = _("Groups")
         ordering = ("name",)
+        app_label = 'user_groups'
 
     def __unicode__(self):
         return self.label or self.name
@@ -154,6 +157,11 @@ class GroupMembership(models.Model):
     create_dt = models.DateTimeField(auto_now_add=True, editable=False)
     update_dt = models.DateTimeField(auto_now=True)
 
+
+    # The following fields are for Newletter Subscribe and Unsubscribe
+    is_newsletter_subscribed = models.BooleanField(default=True)
+    newsletter_key = models.CharField(max_length=50, null=True, blank=True) # will be the secret key for unsubscribe
+
     def __unicode__(self):
         return self.group.name
 
@@ -161,6 +169,7 @@ class GroupMembership(models.Model):
         unique_together = ('group', 'member',)
         verbose_name = _("Group Membership")
         verbose_name_plural = _("Group Memberships")
+        app_label = 'user_groups'
 
     @classmethod
     def add_to_group(cls, **kwargs):
@@ -184,3 +193,39 @@ class GroupMembership(models.Model):
             status=status,
             status_detail=status_detail
         )
+
+    def subscribe_to_newsletter(self):
+        if not self.is_newsletter_subscribed:
+            self.is_newsletter_subscribed = True
+            # change newsletter_key when subscribing
+            self.newsletter_key = uuid.uuid1()
+            self.save()
+            return True
+        elif self.newsletter_key == None:
+            self.newsletter_key = uuid.uuid1()
+            self.save()
+            return True
+        return False
+
+    def unsubscribe_to_newsletter(self):
+        if self.is_newsletter_subscribed:
+            self.is_newsletter_subscribed = False
+            # change newsletter_key when unsubscribing
+            self.newsletter_key = uuid.uuid1()
+            self.save()
+            return True
+
+        return False
+
+    @property
+    def noninteractive_unsubscribe_url(self):
+        site_url = get_setting('site', 'global', 'siteurl')
+        if not self.newsletter_key:
+            self.newsletter_key = uuid.uuid1()
+            self.save()
+        unsubscribe_path = reverse('group.newsletter_unsubscribe_noninteractive', kwargs={
+            'group_slug': self.group.slug,
+            'newsletter_key': self.newsletter_key
+            })
+
+        return site_url + unsubscribe_path

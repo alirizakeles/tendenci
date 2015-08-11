@@ -5,7 +5,7 @@
 {% load base_tags %}
 {% load avatar_tags %}
 {% load search_tags %}
-{% load pagination_tags %}
+{% load bootstrap_pagination_tags %}
 {% load smart_if %}
 
 {% block head_title %}{% blocktrans %}Search{% endblocktrans %}{% endblock %}
@@ -17,7 +17,7 @@
 <link rel="stylesheet" href="{{ STATIC_URL }}css/uni-form-generic.css" />
 {% endblock %}
 
-{% block body %}
+{% block content %}
       {# /*  NEEDED FOR PAGINATION  */ #}
       {% reset page as page_obj %}
       <h1>{% trans 'Search' %}</h1>

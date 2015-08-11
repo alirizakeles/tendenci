@@ -1,0 +1,425 @@
+Tendenci can be installed in two ways. The first is a quick and easy setup for
+development and basic testing, the second is a more scalable aproach for live
+deployments where the heavy lifting is done by services other than the Django
+built in web server.
+
+Since the second category is effectively an extension of the first both sets of
+instructions are presented below.
+
+
+Testing Installation
+==================
+
+You can use the following installation instructions to install a local Tendenci site on Ubuntu (deb). 
+This Django project is intended to help create a Tendenci site that you can deploy on a public hosting, 
+but it's recommended that you install locally first in order to test your themes and designs.
+
+If working on a Mac or PC, or even Ubuntu, we strongly recommend using VMWare Fusion, or at least
+VirtualBox at a minimum to test different configurations. (Hint: VMWare handles bridge IPs much better
+than VirtualBox which matters if you travel a lot and bounce between networks like us.)
+
+
+System requirements
+-------------------
+
+The following are recommended system specifications for a server that will run a test tendenci install.
+
+
+* 1 CPU core for every 2 django workers
+* 2GB of RAM (Relying on swap will hurt performance)
+* 3GB of storage
+
+These values are minimums and its recommended you use at least double the
+minimum CPU cores and storage.
+
+
+System update
+------------
+
+Before installing it is recommended you update your system to ensure you have
+the latest packages. For Ubuntu this is done by
+
+::
+
+    sudo apt-get update
+    sudo apt-get dist-upgrade
+
+
+Pre-config
+----------
+
+Install distribute if not already installed. Required to install easy_install.
+::
+
+    sudo wget http://python-distribute.org/distribute_setup.py
+    python distribute_setup.py
+
+Install `pip <http://www.pip-installer.org/>`_:
+::
+
+    sudo easy_install pip
+
+Install `virtualenv <http://www.virtualenv.org/>`_:
+::
+
+    pip install virtualenv
+
+If you are using OS X, you may need to sudo that command with:
+::
+
+    sudo pip install virtualenv
+
+You'll also need to have Git set up (see `this Github help article <https://help.github.com/articles/set-up-git>`_ for instructions).
+
+OS X Pre-config
+~~~~~~~~~~~~~~~
+
+In order for images to correctly render, you will need to install the jpeg libraries with the commands below:
+::
+
+    curl -O http://www.ijg.org/files/jpegsrc.v9.tar.gz
+    tar -xvzf jpegsrc.v9.tar.gz
+    cd jpeg-9
+    ./configure
+    make
+    sudo make install
+
+You can remove the downloaded files with these commands:
+::
+
+    cd ..
+    rm -r jpeg-9
+    rm jpegsrc.v9.tar.gz
+
+On Mac OS X 10.7 or higher you will need Xcode 4.4.1 or higher (in app store) and will need to install the Command Line tools it comes with. To install these, open Xcode, click the "Xcode" menu item in the top left of the screen near the Apple logo, then click "Preferences", then click "Downloads". Then click install on the line next to Command Line Tools.
+
+Setting up the database
+-----------------------
+
+Tendenci is designed for use with PostgreSQL. You will need to have a
+PostgreSQL server you can connect your tendenci install too. Instructions are
+provided for OSX and Ubuntu below or for more on installing PostgreSQL for
+Django check the docs at
+https://docs.djangoproject.com/en/dev/ref/databases/#postgresql-notes.
+
+OS X
+~~~~
+
+If you are on OS X, we recommend `Postgres.app <http://postgresapp.com/>`_ to get up and running fast.
+
+With Postgres installed, you can create a database from Terminal (replace ``<DB_NAME>`` with your database name):
+::
+
+    DB_NAME=<DB_NAME>
+    psql -h localhost -c "CREATE DATABASE $DB_NAME"
+    psql -h localhost -d $DB_NAME -c "CREATE EXTENSION postgis;"
+
+You can also create a database in your GUI of choice (recommended: `PGAdmin <http://www.pgadmin.org/>`_).
+
+Ubuntu
+~~~~~~
+
+You'll need those packages installed on Ubuntu.
+::
+
+    sudo apt-get install build-essential python-dev libevent-dev libpq-dev libjpeg8 libjpeg-dev libfreetype6 libfreetype6-dev
+
+To install postgres and required packages.
+::
+
+    sudo apt-get install postgresql postgresql-contrib-9.3 postgresql-9.3-postgis-2.1
+
+Create the database and a new postgres user with the following commands (replace ``<DB_NAME>``, ``<DB_USER>`` and ``<DB_PASS>`` with your database name, user and password):
+::
+
+    DB_USER=<DB_USER>
+    DB_PASS=<DB_PASS>
+    DB_NAME=<DB_NAME>
+    sudo -u postgres psql postgres -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';"
+    sudo -u postgres psql postgres -c "CREATE DATABASE $DB_NAME WITH OWNER $DB_USER;"
+    sudo -u postgres psql postgres -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
+    sudo -u postgres psql postgres -d $DB_NAME -c "CREATE EXTENSION postgis;"
+    
+Creating a new tendenci project
+--------------------
+
+Make sure Django 1.8 is installed in your environment.
+::
+
+    pip install "Django>=1.8,<1.9"
+
+
+In your environment, start a new tendenci project with the template (replace ``<project_name>`` with your project name)
+::
+
+    django-admin.py startproject --template=https://github.com/tendenci/tendenci-project-template/zipball/tendenci7 <project_name>
+
+
+Installing the requirements
+--------------------
+
+Install the requirements with the following commands.
+::
+    cd <project_name>
+    pip install -r requirements/dev.txt
+
+Next update the ``conf/local_settings.py`` file in the site folder (``/var/www/<project_name>``). Replace ``<DB_NAME>``, ``<DB_USER>`` and ``<DB_PASS>`` for the setting ``DATABASE`` with the newly created database name, user and password.
+
+Update your database name, database user and database password for the `DATABASES` setting in the ``conf/local_settings.py``.
+
+
+Setting up SECRET_KEY and SITE_SETTINGS_KEY
+-------------------------------------------
+
+The ``SECRET_KEY`` or ``SITE_SETTINGS_KEY`` is a random string with the length of 32. You can update them manually in the ``conf/local_settings.py`` file. Or automatically update it with the following script.
+::
+
+    curl https://gist.githubusercontent.com/jennyq/45de71a93cff774c593d/raw/30ede14eb133de66cc839cc0458a1e915368534e/setup_keys.sh | bash
+
+
+Setting up the site
+-------------------
+
+Now, use the deploy script to create the database tables and static media.
+::
+
+    python deploy.py
+
+Load some defaults.
+::
+
+    python manage.py load_base_defaults
+
+
+.. Note:: 
+
+    Alternatively, you can load more data with the following command.
+    ::
+
+        python manage.py load_npo_defaults
+
+
+To create an adminstrator login, run the following command and fill in the prompts:
+::
+
+    python manage.py createsuperuser
+
+Finally, we can use the runserver command so that we can view the site in our browser:
+::
+
+    python manage.py runserver
+
+Open http://127.0.0.1:8000/ in your browser to see your tendenci site!
+
+
+Theming Options
+----------------
+
+**Optional:** If you want to use a different theme, you can set that theme with the following command, replacing `my-theme-name` with the name of your theme:
+::
+
+    python manage.py set_theme my-theme-name
+
+
+Scalable Installation
+===================
+
+With a working test setup you can upgrade it to a fully functional, scalable install.
+Below are some instructions to create a Tendenci site on an Ubuntu server (14.04 is recommended).
+
+All of the commands below should be run on the command line after you are
+connected to the server and build on the work done in the previous sections.
+
+Extra packages
+---------------
+
+You can install all of the necessary Ubuntu packages with the following commands:
+::
+
+    sudo apt-get install openssh-server memcached libmemcached-dev nginx
+
+This will install openssh-server to allow remote connections to the server
+along with memcache (a caching system) and nginx the web server.
+
+Setting up Upstart
+------------------
+
+On Ubuntu, the Upstart functionality can be used to add the site as a service.
+
+First, create a file at the path ``/etc/init/tendenci.conf``. 
+::
+
+    cd /etc/init/
+    sudo touch tendenci.conf
+    
+The contents of that file should match the example below:
+::
+
+    description "Tendenci Upstart Script"
+    start on runlevel [2345]
+    stop on runlevel [06]
+    respawn
+    respawn limit 10 5
+    script
+        cd /var/www/sitename
+        exec gunicorn -w 2 -b 127.0.0.1:8000 conf.wsgi --max-requests 350
+    end script
+
+You will need to replace the ``/var/www/sitename`` with the location of the site.
+
+To start this service, use the following command:
+::
+
+    sudo service tendenci start
+
+If any changes in the future are made to the file ``conf/local_settings.py``, the service should be restarted with this command:
+::
+
+    sudo service tendenci restart
+
+Setting up SystemD
+------------------
+
+On most distributions (Including recent Ubuntu systems) Systemd is the default
+init system.
+
+Systemd Unit files should be created in /etc/systemd/system/ with a name of
+your choice (eg tendenci-test.service ). The contents of your unit file should
+look like this
+::
+
+    [Unit]
+    Description=Start Tendenci instance
+    Requires=nginx.service postgresql.service
+    Wants=memcached.service
+    Before=nginx.service
+    After=postgresql.service
+
+    [Service]
+    WorkingDirectory=/var/www/sitename
+    PIDFile=/run/tendenci-test.pid
+    Type=forking
+    KillMode=process
+    Restart=restart-always
+    ExecStart=/srv/venv_tendenci_test_site/bin/gunicorn    \
+              --group www-data                             \
+              --user www-data                              \
+              --workers 4                                  \
+              --bind=127.0.0.1:8000                        \
+              --pid=/run/tendenci-test.pid                 \
+              --pythonpath=/var/www/sitename               \
+              --error-logfile=/var/log/tendenci-test.error \
+              --daemon                                     \
+             conf.wsgi 
+
+    [Install]
+    WantedBy=multi-user.target
+ 
+To start the service run
+
+::
+
+    systemctl enable tendenci-test
+
+and to enable it so it starts on boot use
+
+::
+
+    systemctl enable tendenci-test
+
+Setting up nginx
+----------------
+
+First, make an nginx configuration file for the site. This will be created at ``/etc/nginx/sites-available/sitename`` and should match the example below:
+::
+
+    server {
+        listen 80;
+        server_name localhost;
+
+        charset   utf-8;
+        keepalive_timeout  65;
+        client_max_body_size  30M;
+        root /var/www/sitename/;
+
+        location /static/ {
+            access_log off;
+            expires 30d;
+        }
+     
+        location /media/ {
+            access_log off;
+            expires 30d;
+        }
+
+        location ~ /themes/([a-zA-Z0-9\-\_]+)/media/ {
+            access_log off;
+        }
+
+        location / {
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_pass http://127.0.0.1:8000/;
+        }
+    }
+
+Again, replace ``/var/www/sitename/`` with the real path. If you have a domain name like ``example.com`` pointed at the server, add it to the ``server_name`` line in the place of ``localhost``.
+
+Next, create a symlink to the new file at ``/etc/nginx/sites-enabled/sitename`` with this command:
+::
+
+    ln -s /etc/nginx/sites-available/sitename /etc/nginx/sites-enabled/sitename
+
+Remove the default record from the sites-enabled with this command:
+::
+
+    rm /etc/nginx/sites-enabled/default
+
+Finally, restart the nginx service:
+::
+
+    sudo service nginx restart
+
+
+Setup Mail
+----------
+
+For a mail server, install postfix. This package has 3 steps that you must respond to in order to complete the installation. If the server is alreadly configured with a domain name, enter that domain in the prompts. Otherwise, leave the defaults in place. To install the package, run this command:
+::
+
+    apt-get install postfix
+
+
+Memcached
+---------
+
+Memcache is a service that can be used to speed up access to web pages by
+caching them in the systems memory for future use. Because tendenci is set up
+to use memcache by default, all that is required to enable it is installing it.
+
+if you wish you increase the amount of memory memcache uses edit
+/etc/memcached.conf and change the '-m' value from 64 to your desired cache
+size.
+
+Load the site
+--------------
+
+The site should now be viewable, either at the ip address of the server, or at the domain name that has been setup.
+
+
+Running Multiple sites on one server
+------------------------------------
+
+The process outlined above to install Tendenci can be used multiple times on a single server.
+
+The steps to install Server Packages and the steps to replace the main postgres password do not need to be repeated.
+
+When installing any additional Tendenci sites, replace the ``sitename`` used throughout the examples with a unique name.
+
+When creating the database for any additional sites, be sure to use a unique database name and username. In the instructions above, the database name and username were both ``tendenci``. Change this to something unique for each site.
+
+Each additional Tendenci site will need to run on a different port internally. In the instructions, port 8000 was used. This will be changed for additional sites in the nginx configuration file as well as the ``.upstart.sh`` file for each new site.
+
+You should also consider running a separate memcache instance for each tendenci install. This will increase the dedicated cache vailable for each instance and improve site performance.
+

@@ -6,9 +6,9 @@ from django.utils.translation import ugettext_lazy as _
 from django import forms
 from django.contrib.contenttypes.models import ContentType
 
-from tendenci.core.perms.forms import TendenciBaseForm
+from tendenci.apps.perms.forms import TendenciBaseForm
 from tendenci.apps.discounts.models import Discount
-from tendenci.core.base.fields import SplitDateTimeField, PriceField
+from tendenci.apps.base.fields import SplitDateTimeField, PriceField
 from tendenci.apps.discounts.utils import assign_discount
 
 END_DT_INITIAL = datetime.now() + timedelta(weeks=4)
@@ -66,13 +66,14 @@ class DiscountForm(TendenciBaseForm):
 
     def __init__(self, *args, **kwargs):
         super(DiscountForm, self).__init__(*args, **kwargs)
-        if not self.user.profile.is_superuser:
+        if self.user and not self.user.profile.is_superuser:
             if 'status_detail' in self.fields: self.fields.pop('status_detail')
 
         MODELS_WITH_DISCOUNT = ['registrationconfiguration',
                                 'membershipset']
         content_types = ContentType.objects.filter(model__in=MODELS_WITH_DISCOUNT)
-        self.fields['apps'].choices = ((c.id, c.app_label) for c in content_types)
+        if 'apps' in self.fields.keys():
+            self.fields['apps'].choices = ((c.id, c.app_label) for c in content_types)
 
     def clean_discount_code(self):
         data = self.cleaned_data['discount_code']

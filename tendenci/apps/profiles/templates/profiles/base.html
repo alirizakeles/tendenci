@@ -1,4 +1,20 @@
 {% extends "site_base.html" %}
+{% load i18n %}
+{% load staticfiles %}
 
-{% block title %}{{ MODULE_USERS_LABEL }} - {% endblock %}
 
+{% block title %}{% firstof MODULE_USERS_LABEL trans 'Profile' %} - {% endblock %}
+
+{% block banner %}{% endblock %}
+
+{% block extra_body %}
+    {{ block.super }}
+    <script type="text/javascript" src="{% static 'js/global/dropdown.js' %}"></script>
+    <script type="text/javascript">
+        var iconrow = new dropdown({
+            container: 'more-options-wrap',
+            trigger: 'more-options-trigger',
+            target: 'more-options-target'
+        });
+    </script>
+{% endblock %}

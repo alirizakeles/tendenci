@@ -1,32 +1,20 @@
 import os.path
 import subprocess
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import render_to_response, get_object_or_404, redirect
+from django.shortcuts import render_to_response, redirect
 from django.template import RequestContext
-from django.http import HttpResponseRedirect, HttpResponse
-from django.core.urlresolvers import reverse
 from django.conf import settings
-from django.contrib import messages
-from django import forms
-from django.db import models
 from tendenci.apps.wp_importer.forms import BlogImportForm
-from tendenci.apps.wp_importer.models import BlogImport
 from tendenci.apps.wp_importer.tasks import WPImportTask
-from tendenci.core.base.http import MissingApp
-from django.contrib.auth.models import User
+from tendenci.apps.base.http import MissingApp
 from django.contrib import messages
 from django.utils.translation import ugettext as _
-from parse_uri import ParseUri
 from djcelery.models import TaskMeta
 
-from tendenci.core.base.http import Http403
-from tendenci.core.perms.utils import has_perm, update_perms_and_save
-from tendenci.core.event_logs.models import EventLog
-from tendenci.core.base.utils import send_email_notification
 
 @login_required
 def index(request, template_name="wp_importer/index.html"):
-    if "tendenci.addons.articles" not in settings.INSTALLED_APPS:
+    if "tendenci.apps.articles" not in settings.INSTALLED_APPS:
         raise MissingApp(_('Oops, you must install Articles so that we can import your posts from WordPress!'))
     if request.method == 'POST':
         form = BlogImportForm(request.POST, request.FILES)

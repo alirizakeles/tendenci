@@ -1,5 +1,5 @@
 {% extends "profiles/base.html" %}
-{% load pagination_tags %}
+{% load bootstrap_pagination_tags %}
 {% load profile_tags %}
 {% load base_filters %}
 {% load perm_tags %}
@@ -12,10 +12,9 @@
 <link rel="stylesheet" href="{{ STATIC_URL }}css/reports.css">
 {% endblock %}
 
-{% block body %}
+{% block content %}
 {{ block.super }}
 <div class="t">
-    {% users_nav request.user request.user %}
     <h1>{% trans "Users not in Groups" %}</h1>
     <div class="profiles-wrap">
 

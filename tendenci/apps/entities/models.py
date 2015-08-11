@@ -25,11 +25,11 @@ class Entity(models.Model):
 
     # Model removed from TendenciBaseModel. Those fields added below
     allow_anonymous_view = models.BooleanField(_("Public can view"), default=True)
-    allow_user_view = models.BooleanField(_("Signed in user can view"))
-    allow_member_view = models.BooleanField()
-    allow_anonymous_edit = models.BooleanField()
-    allow_user_edit = models.BooleanField(_("Signed in user can change"))
-    allow_member_edit = models.BooleanField()
+    allow_user_view = models.BooleanField(_("Signed in user can view"), default=True)
+    allow_member_view = models.BooleanField(default=True)
+    allow_anonymous_edit = models.BooleanField(default=False)
+    allow_user_edit = models.BooleanField(_("Signed in user can change"), default=False)
+    allow_member_edit = models.BooleanField(default=False)
 
     create_dt = models.DateTimeField(auto_now_add=True)
     update_dt = models.DateTimeField(auto_now=True)
@@ -37,15 +37,20 @@ class Entity(models.Model):
     creator_username = models.CharField(max_length=50)
     owner = models.ForeignKey(User, related_name="%(class)s_owner", null=True, on_delete=models.SET_NULL)
     owner_username = models.CharField(max_length=50)
-    status = models.BooleanField(_("Active"), default=True)
+    status = models.BooleanField("Active", default=True)
     status_detail = models.CharField(max_length=50, default='active')
 
     objects = EntityManager()
 
     class Meta:
-        permissions = (("view_entity",_("Can view entity")),)
+        permissions = (("view_entity", _("Can view entity")),)
         verbose_name_plural = _("entities")
         ordering = ("entity_name",)
+        app_label='entities'
+
+    @models.permalink
+    def get_absolute_url(self):
+        return ("entity", [self.pk])
 
     def __unicode__(self):
         return self.entity_name

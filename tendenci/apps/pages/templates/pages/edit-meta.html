@@ -10,10 +10,8 @@
 <link rel="stylesheet" href="{{ STATIC_URL }}css/pages.css">
 {% endblock %}
 
-{% block body %}
+{% block content %}
 <div class="t">
-
-    {% page_nav user page %}
     <h1>{% firstof MODULE_PAGES_LABEL trans 'Page' %} {% trans "Meta Information for" %}<br />
     {% blocktrans with t=page.title %}{{ t }}{% endblocktrans %}</h1>
 
@@ -24,7 +22,7 @@
             </div>
         </div>
 
-        <form action="{% url page.edit.meta page.pk %}" method="post">{% csrf_token %}
+        <form action="{% url "page.edit.meta" page.pk %}" method="post">{% csrf_token %}
         <div class="forms">
             {{ form|styled_form }}
             <input type="submit" value="{% trans 'Save Changes' %}" />

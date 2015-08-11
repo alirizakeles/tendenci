@@ -1,9 +1,9 @@
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
-from django.contrib.contenttypes import generic
+from django.contrib.contenttypes.fields import GenericRelation
 
-from tendenci.core.perms.object_perms import ObjectPermission
-from tendenci.core.perms.models import TendenciBaseModel
+from tendenci.apps.perms.object_perms import ObjectPermission
+from tendenci.apps.perms.models import TendenciBaseModel
 from tendenci.apps.pages.models import Page
 from tendenci.apps.navs.managers import NavManager
 from tendenci.apps.navs.signals import update_nav_links
@@ -11,18 +11,19 @@ from tendenci.libs.abstracts.models import OrderingBaseModel
 from tendenci.apps.navs.utils import clear_nav_cache
 
 class Nav(TendenciBaseModel):
-    class Meta:
-        permissions = (("view_nav",_("Can view nav")),)
-
     title = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
     megamenu = models.BooleanField(default=False)
 
-    perms = generic.GenericRelation(ObjectPermission,
+    perms = GenericRelation(ObjectPermission,
                                           object_id_field="object_id",
                                           content_type_field="content_type")
 
     objects = NavManager()
+
+    class Meta:
+        permissions = (("view_nav",_("Can view nav")),)
+        app_label = 'navs'
 
     def __unicode__(self):
         return self.title
@@ -30,11 +31,11 @@ class Nav(TendenciBaseModel):
     @models.permalink
     def get_absolute_url(self):
         return('navs.detail', [self.pk])
-    
+
     def save(self, *args, **kwargs):
         super(Nav, self).save(*args, **kwargs)
         # reset nav cache
-        clear_nav_cache(self) 
+        clear_nav_cache(self)
 
     @property
     def top_items(self):
@@ -52,6 +53,9 @@ class NavItem(OrderingBaseModel):
     level = models.IntegerField(default=0)
     page = models.ForeignKey(Page, null=True)
     url = models.CharField(_("URL"), max_length=200, blank=True, null=True)
+
+    class Meta:
+        app_label = 'navs'
 
     def __unicode__(self):
         return '%s - %s' % (self.nav.title, self.label)

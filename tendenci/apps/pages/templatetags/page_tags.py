@@ -3,7 +3,7 @@ from datetime import datetime
 from django.template import Library, TemplateSyntaxError, Variable
 from django.utils.translation import ugettext_lazy as _
 
-from tendenci.core.base.template_tags import ListNode, parse_tag_kwargs
+from tendenci.apps.base.template_tags import ListNode, parse_tag_kwargs
 from tendenci.apps.pages.models import Page
 
 register = Library()
@@ -29,6 +29,15 @@ def page_nav(context, user, page=None):
 
 @register.inclusion_tag("pages/search-form.html", takes_context=True)
 def page_search(context):
+    return context
+
+
+@register.inclusion_tag("pages/top_nav_items.html", takes_context=True)
+def page_current_app(context, user, page=None):
+    context.update({
+        "app_object": page,
+        "user": user
+    })
     return context
 
 

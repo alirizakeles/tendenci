@@ -148,7 +148,7 @@ class ReportAdmin(object):
             except IndexError:
                 raise ValueError(_('The field "%(f)s" does not exist in model "%(m)s".' % {
                     'f': field,
-                    'm': self.model._meta.module_name}))
+                    'm': self.model._meta.model_name}))
             model_fields.append([model_field, field])
             if m2mfields:
                 model_m2m_fields.append([model_field, field, len(model_fields) - 1, m2mfields])
@@ -326,7 +326,7 @@ class ReportAdmin(object):
 
                 if not context_request.GET.get('export', None) is None and not self.parent_report:
                     if context_request.GET.get('export') == 'excel':
-                        response = HttpResponse(mimetype='text/csv')
+                        response = HttpResponse(content_type='text/csv')
                         response['Content-Disposition'] = 'attachment; filename=%s.csv' % self.slug
 
                         writer = csv.writer(response)

@@ -1,5 +1,5 @@
-from tendenci.core.registry import site
-from tendenci.core.registry.base import CoreRegistry, lazy_reverse
+from tendenci.apps.registry.sites import site
+from tendenci.apps.registry.base import CoreRegistry, lazy_reverse
 from tendenci.apps.navs.models import Nav
 from django.utils.translation import ugettext_lazy as _
 

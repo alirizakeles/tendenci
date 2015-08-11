@@ -7,9 +7,9 @@ from django.http import HttpResponseRedirect, HttpResponse
 from django.contrib import messages
 from django.utils.translation import ugettext_lazy as _
 
-from tendenci.core.base.http import Http403
-from tendenci.core.perms.utils import has_perm
-from tendenci.core.event_logs.models import EventLog
+from tendenci.apps.base.http import Http403
+from tendenci.apps.perms.utils import has_perm
+from tendenci.apps.event_logs.models import EventLog
 from tendenci.apps.subscribers.models import GroupSubscription
 from tendenci.apps.forms_builder.forms.models import Form
 

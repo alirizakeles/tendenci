@@ -1,11 +1,14 @@
 from haystack import indexes
-from haystack import site
+
 
 from tendenci.apps.contacts.models import Contact
-from tendenci.core.perms.indexes import TendenciBaseSearchIndex
+from tendenci.apps.perms.indexes import TendenciBaseSearchIndex
 
 
-class ContactIndex(TendenciBaseSearchIndex):
-    pass
+class ContactIndex(TendenciBaseSearchIndex, indexes.Indexable):
 
-site.register(Contact, ContactIndex)
+    @classmethod
+    def get_model(self):
+        return Contact
+
+

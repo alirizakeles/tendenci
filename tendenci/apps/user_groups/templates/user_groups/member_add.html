@@ -11,10 +11,9 @@
     <link rel="stylesheet" href="{{ STATIC_URL }}css/admin/django-admin-widgets.css">
 {% endblock %}
 
-{% block body %}
+{% block content %}
     <div class="t">
 
-    {% user_group_nav request.user group %}
     <div class="quick-options">
         {% user_group_options request.user group %}
     </div>

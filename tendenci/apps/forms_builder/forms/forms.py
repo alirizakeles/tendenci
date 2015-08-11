@@ -1,34 +1,37 @@
-
 from datetime import datetime
 from os.path import join
 from uuid import uuid4
-from decimal import Decimal
 
 from django import forms
-from django.core.files.storage import FileSystemStorage
 from django.utils.importlib import import_module
 from django.utils.translation import ugettext_lazy as _
 from django.template.defaultfilters import slugify
 from django.utils.safestring import mark_safe
 from django.core.files.storage import default_storage
-from django.core.validators import email_re
+from tendenci.apps.base.utils import validate_email
 
-from tendenci.core.site_settings.utils import get_setting
-from tendenci.core.payments.models import PaymentMethod
+from tendenci.apps.site_settings.utils import get_setting
+from tendenci.apps.payments.models import PaymentMethod
 from tinymce.widgets import TinyMCE
-from tendenci.core.perms.forms import TendenciBaseForm
+from tendenci.apps.perms.forms import TendenciBaseForm
 from captcha.fields import CaptchaField
 from tendenci.apps.user_groups.models import Group
-from tendenci.core.base.utils import get_template_list, tcurrency
-from tendenci.core.base.fields import EmailVerificationField, PriceField
-from tendenci.core.base.utils import currency_check
-
-from tendenci.addons.recurring_payments.fields import BillingCycleField
-from tendenci.addons.recurring_payments.widgets import BillingCycleWidget, BillingDateSelectWidget
+from tendenci.apps.base.utils import get_template_list, tcurrency
+from tendenci.apps.base.fields import EmailVerificationField, PriceField
+from tendenci.apps.base.forms import FormControlWidgetMixin
+from tendenci.apps.base.utils import currency_check
+from tendenci.apps.payments.fields import PaymentMethodModelMultipleChoiceField
+from tendenci.apps.recurring_payments.fields import BillingCycleField
+from tendenci.apps.recurring_payments.widgets import BillingCycleWidget, BillingDateSelectWidget
 from tendenci.apps.forms_builder.forms.models import FormEntry, FieldEntry, Field, Form, Pricing
-from tendenci.apps.forms_builder.forms.settings import FIELD_MAX_LENGTH, UPLOAD_ROOT
+from tendenci.apps.forms_builder.forms.settings import FIELD_MAX_LENGTH
 
-template_choices = [('default.html',_('Default'))]
+
+template_choices = [
+    ('', _('None')),
+    ('default.html', _('Default')),
+    ('forms/base.html', _('Forms Base'))
+]
 template_choices += get_template_list()
 
 #fs = FileSystemStorage(location=UPLOAD_ROOT)
@@ -39,8 +42,8 @@ FIELD_NAME_LENGTH = 50
 FIELD_PHONE_LENGTH = 50
 THIS_YEAR = datetime.today().year
 
-class FormForForm(forms.ModelForm):
 
+class FormForForm(FormControlWidgetMixin, forms.ModelForm):
     class Meta:
         model = FormEntry
         exclude = ("form", "entry_time", "entry_path", "payment_method", "pricing", "creator")
@@ -53,6 +56,7 @@ class FormForForm(forms.ModelForm):
         self.user = user
         self.form = form
         self.form_fields = form.fields.visible().order_by('position')
+        self.auto_fields = form.fields.auto_fields().order_by('position')
         super(FormForForm, self).__init__(*args, **kwargs)
 
         def add_fields(form, form_fields):
@@ -69,6 +73,10 @@ class FormForForm(forms.ModelForm):
                         field_class = forms.EmailField
                     else:
                         field_class = EmailVerificationField
+
+                elif field.field_type == 'BooleanField' and len(field.choices) > 0:
+                    field_class = forms.MultipleChoiceField
+                    field_widget = 'django.forms.CheckboxSelectMultiple'
 
                 elif field.field_type == 'CountryField' or field.field_type == 'StateProvinceField':
                     field_class = getattr(forms, 'ChoiceField')
@@ -170,6 +178,8 @@ class FormForForm(forms.ModelForm):
         if not self.user.is_authenticated() and get_setting('site', 'global', 'captcha'): # add captcha if not logged in
             self.fields['captcha'] = CaptchaField(label=_('Type the code below'))
 
+        self.add_form_control_class()
+
 
     def clean_pricing_option(self):
         pricing_pk = int(self.cleaned_data['pricing_option'])
@@ -212,6 +222,11 @@ class FormForForm(forms.ModelForm):
             field_entry = FieldEntry(field_id = field.id, entry=entry, value = value)
             field_entry.save()
 
+        for field in self.auto_fields:
+            value = field.choices
+            field_entry = FieldEntry(field_id = field.id, entry=entry, value=value)
+            field_entry.save()
+
         # save selected pricing and payment method if any
         if (self.form.custom_payment or self.form.recurring_payment) and self.form.pricing_set.all():
             entry.payment_method = self.cleaned_data['payment_option']
@@ -238,14 +253,14 @@ class FormAdminForm(TendenciBaseForm):
     intro = forms.CharField(required=False,
         widget=TinyMCE(attrs={'style':'width:100%'},
         mce_attrs={'storme_app_label':Form._meta.app_label,
-        'storme_model':Form._meta.module_name.lower()}))
+        'storme_model':Form._meta.model_name.lower()}))
 
     response = forms.CharField(required=False, label=_('Confirmation Text'),
         widget=TinyMCE(attrs={'style':'width:100%'},
         mce_attrs={'storme_app_label':Form._meta.app_label,
-        'storme_model':Form._meta.module_name.lower()}))
+        'storme_model':Form._meta.model_name.lower()}))
 
-    template = forms.ChoiceField(choices=template_choices)
+    template = forms.ChoiceField(choices=template_choices, required=False)
 
     class Meta:
         model = Form
@@ -323,7 +338,7 @@ class FormForm(TendenciBaseForm):
     #     required=False
     # )
 
-    payment_methods = forms.ModelMultipleChoiceField(
+    payment_methods = PaymentMethodModelMultipleChoiceField(
             queryset=PaymentMethod.objects.all(),
             widget=forms.CheckboxSelectMultiple,
             required=False,
@@ -332,25 +347,26 @@ class FormForm(TendenciBaseForm):
 
     class Meta:
         model = Form
-        fields = ('title',
-                  'slug',
-                  'intro',
-                  'response',
-                  'send_email', # removed per ed's request, added back per Aaron's request 2011-10-14
-                  'email_text',
-                  'completion_url',
-                  'subject_template',
-                  'email_from',
-                  'email_copies',
-                  'custom_payment',
-                  'recurring_payment',
-                  'payment_methods',
-                  'user_perms',
-                  'member_perms',
-                  'group_perms',
-                  'allow_anonymous_view',
-                  'status_detail',
-                 )
+        fields = (
+            'title',
+            'slug',
+            'intro',
+            'response',
+            'send_email', # removed per ed's request, added back per Aaron's request 2011-10-14
+            'email_text',
+            'completion_url',
+            'subject_template',
+            'email_from',
+            'email_copies',
+            'custom_payment',
+            'recurring_payment',
+            'payment_methods',
+            'user_perms',
+            'member_perms',
+            'group_perms',
+            'allow_anonymous_view',
+            'status_detail',
+        )
         fieldsets = [(_('Form Information'), {
                         'fields': [ 'title',
                                     'slug',
@@ -425,7 +441,24 @@ class FormForField(forms.ModelForm):
             else:
                 for val in choices.split(','):
                     try:
-                        Group.objects.get(name=val.strip())
+                        g = Group.objects.get(name=val.strip())
+                        if not g.allow_self_add:
+                            raise forms.ValidationError(_("The group \"%(val)s\" does not allow self-add." % { 'val' : val }))
+                    except Group.DoesNotExist:
+                        raise forms.ValidationError(_("The group \"%(val)s\" does not exist" % { 'val' : val }))
+
+        if field_function == "GroupSubscriptionAuto":
+            # field_type doesn't matter since this field shouldn't be rendered anyway.
+            if visible:
+                raise forms.ValidationError(_("This field must not be visible to users."))
+            if not choices:
+                raise forms.ValidationError(_("This field's function requires at least 1 group specified."))
+            else:
+                for val in choices.split(','):
+                    try:
+                        g = Group.objects.get(name=val.strip())
+                        if not g.allow_self_add:
+                            raise forms.ValidationError(_("The group \"%(val)s\" does not allow self-add." % { 'val' : val }))
                     except Group.DoesNotExist:
                         raise forms.ValidationError(_("The group \"%(val)s\" does not exist" % { 'val' : val }))
 
@@ -442,7 +475,7 @@ class FormForField(forms.ModelForm):
                     raise forms.ValidationError(_("The \"Email to Recipients\" function requires at least 1 email specified."))
                 else:
                     for val in choices.split(','):
-                        if not email_re.match(val.strip()):
+                        if not validate_email(val.strip()):
                             raise forms.ValidationError(_("\"%(val)s\" is not a valid email address" % {'val':val}))
             else:
                 if not choices:
@@ -452,7 +485,7 @@ class FormForField(forms.ModelForm):
                         val = val.split(':')
                         if len(val) < 2:
                             raise forms.ValidationError(_("The \"Email to Recipients\" function requires choices to be in the following format: <choice_label>:<email_address>."))
-                        if not email_re.match(val[1].strip()):
+                        if not validate_email(val[1].strip()):
                             raise forms.ValidationError(_("\"%(val)s\" is not a valid email address" % {'val':val[1]}))
 
         if field_function != None and field_function.startswith("Email"):
@@ -468,7 +501,7 @@ class FormForField(forms.ModelForm):
         return cleaned_data
 
 
-class PricingForm(forms.ModelForm):
+class PricingForm(FormControlWidgetMixin, forms.ModelForm):
     billing_dt_select = BillingCycleField(label=_('When to bill'),
                                           widget=BillingDateSelectWidget,
                                           help_text=_('It is used to determine the payment due date for each billing cycle'))
@@ -518,12 +551,17 @@ class PricingForm(forms.ModelForm):
             self.fields['billing_cycle'].initial = [1, u'month']
 
         # Add class for recurring payment fields
-        self.fields['taxable'].widget.attrs['class'] = 'recurring-payment'
-        self.fields['tax_rate'].widget.attrs['class'] = 'recurring-payment'
-        self.fields['billing_cycle'].widget.attrs['class'] = 'recurring-payment'
-        self.fields['billing_dt_select'].widget.attrs['class'] = 'recurring-payment'
-        self.fields['has_trial_period'].widget.attrs['class'] = 'recurring-payment'
-        self.fields['trial_period_days'].widget.attrs['class'] = 'recurring-payment'
+        recurring_payment_fields = [
+            'taxable', 'tax_rate', 'billing_cycle', 'billing_dt_select',
+            'has_trial_period', 'trial_period_days'
+        ]
+
+        for field in recurring_payment_fields:
+            class_attr = self.fields[field].widget.attrs.get('class', None)
+            if class_attr and 'recurring-payment' not in class_attr:
+                class_attr += ' recurring-payment'
+
+                self.fields[field].widget.attrs.update({'class': class_attr})
 
     def save(self, **kwargs):
         pricing = super(PricingForm, self).save(**kwargs)

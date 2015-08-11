@@ -3,9 +3,9 @@ from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
 from django.utils.translation import ugettext as _
 
-from tendenci.core.event_logs.models import EventLog
-from tendenci.core.perms.admin import TendenciBaseModelAdmin
-from tendenci.core.perms.utils import update_perms_and_save
+from tendenci.apps.event_logs.models import EventLog
+from tendenci.apps.perms.admin import TendenciBaseModelAdmin
+from tendenci.apps.perms.utils import update_perms_and_save
 from tendenci.apps.profiles.models import Profile
 from tendenci.apps.profiles.forms import ProfileAdminForm
 
@@ -65,6 +65,14 @@ class ProfileAdmin(TendenciBaseModelAdmin):
     form = ProfileAdminForm
 
     ordering = ('user__last_name', 'user__first_name')
+
+    def get_object(self, request, object_id, from_field=None):
+        obj = super(ProfileAdmin, self).get_object(request, object_id, from_field=from_field)
+        # Avoid language being accidentally set to the first option 'ar'
+        # because en-us is not an option in the language dropdown
+        if obj and obj.language == 'en-us':
+            obj.language = 'en'
+        return obj
 
     def save_model(self, request, object, form, change):
         instance = form.save(request=request, commit=False)

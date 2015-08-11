@@ -3,10 +3,10 @@ from collections import OrderedDict
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from django.contrib.auth.models import User
-from django.utils import simplejson as json
+import simplejson as json
 
-from tendenci.addons.memberships.models import MembershipType
-from tendenci.core.perms.models import TendenciBaseModel
+from tendenci.apps.memberships.models import MembershipType
+from tendenci.apps.perms.models import TendenciBaseModel
 from tendenci.apps.invoices.models import Invoice
 from tendenci.apps.reports.utils import get_ct_nice_name
 

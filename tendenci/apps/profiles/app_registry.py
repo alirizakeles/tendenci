@@ -1,8 +1,8 @@
 from django.conf import settings
 from django.utils.translation import ugettext as _
 
-from tendenci.core.registry import site
-from tendenci.core.registry.base import PeopleRegistry, lazy_reverse
+from tendenci.apps.registry.sites import site
+from tendenci.apps.registry.base import PeopleRegistry, lazy_reverse
 from tendenci.apps.profiles.models import Profile
 
 

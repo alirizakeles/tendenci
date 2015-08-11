@@ -6,14 +6,14 @@ from django.template import RequestContext
 from django.utils.translation import ugettext_lazy as _
 
 from tendenci.apps.search.forms import ModelSearchForm
-from tendenci.core.event_logs.models import EventLog
+from tendenci.apps.event_logs.models import EventLog
 
 RESULTS_PER_PAGE = getattr(settings, 'HAYSTACK_SEARCH_RESULTS_PER_PAGE', 20)
 
 def open_search(request, template_name="search/open_search_xml.html"):
     return render_to_response(
         template_name,
-        mimetype="application/opensearchdescription+xml",
+        content_type="application/opensearchdescription+xml",
         context_instance=RequestContext(request)
     )
 

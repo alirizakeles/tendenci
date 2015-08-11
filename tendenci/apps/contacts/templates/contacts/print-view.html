@@ -1,21 +1,14 @@
 {% extends "contacts/base.html" %}
-{% load contact_tags %}
-{% load base_filters %}
 {% load i18n %}
+{% load base_filters %}
+{% load contact_tags %}
+
 
 {% block title %}{{ block.super }}{% trans "Print" %}{% endblock %}
 
-{% block extra_head %}
-{{ block.super }}
-<link rel="stylesheet" href="{{ STATIC_URL }}css/contacts.css">
-{% endblock %}
-
-{% block body %}
+{% block content %}
 <div class="t">
     <h1>{% firstof MODULE_CONTACTS_LABEL trans 'Contacts' %} {% trans "Print" %}</h1>
-
-    {% contact_nav request.user contact %}
-
     <div class="contact-wrap">
 
         <div class="options">

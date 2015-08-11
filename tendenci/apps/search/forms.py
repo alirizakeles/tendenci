@@ -9,11 +9,11 @@ from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q
 from django.contrib.auth.models import User
 
-from tendenci.core.site_settings.utils import get_setting
-from tendenci.core.registry import site as registry_site
-from tendenci.core.event_logs.models import EventLog
+from tendenci.apps.site_settings.utils import get_setting
+from tendenci.apps.registry.sites import site as registry_site
+from tendenci.apps.event_logs.models import EventLog
 try:
-    from tendenci.addons.corporate_memberships.models import CorporateMembership as CorpMemb
+    from tendenci.apps.corporate_memberships.models import CorporateMembership as CorpMemb
 except:
     CorpMemb = None
 
@@ -36,7 +36,7 @@ apps_not_to_search = [
 ]
 
 registered_apps = registry_site.get_registered_apps()
-registered_apps_names = [app['model']._meta.module_name for app in registered_apps \
+registered_apps_names = [app['model']._meta.model_name for app in registered_apps \
                         if app['verbose_name'].lower() not in apps_not_to_search]
 registered_apps_models = [app['model'] for app in registered_apps \
                          if app['verbose_name'].lower() not in apps_not_to_search]
@@ -44,13 +44,13 @@ registered_apps_models = [app['model'] for app in registered_apps \
 
 def model_choices(site=None):
     if site is None:
-        site = haystack.sites.site
+        site = haystack.connections['default'].unified_index()
 
     choices = []
     for m in site.get_indexed_models():
-        if m._meta.module_name.lower() in registered_apps_names:
+        if m._meta.model_name.lower() in registered_apps_names:
             if get_setting("module", m._meta.app_label, "enabled") is not False:
-                choices.append(("%s.%s" % (m._meta.app_label, m._meta.module_name),
+                choices.append(("%s.%s" % (m._meta.app_label, m._meta.model_name),
                                 capfirst(unicode(m._meta.verbose_name_plural))))
 
     return sorted(choices, key=lambda x: x[1])
@@ -103,7 +103,7 @@ class SearchForm(forms.Form):
         # making a special case for corp memb because it needs to utilize two settings
         # (anonymoussearchcorporatemembers and membersearchcorporatemembers)
         if CorpMemb and self.cleaned_data['models'] == ["%s.%s" % (CorpMemb._meta.app_label,
-                                                                   CorpMemb._meta.module_name)]:
+                                                                   CorpMemb._meta.model_name)]:
             filter_and, filter_or = CorpMemb.get_search_filter(user)
             q_obj = None
             if filter_and:
@@ -231,14 +231,14 @@ class ModelSearchForm(SearchForm):
             for app in registered_apps:
                 if app['verbose_name'].lower() == 'user':
                     registered_apps_models.append(app['model'])
-                    registered_apps_names.append(app['model']._meta.module_name)
+                    registered_apps_names.append(app['model']._meta.model_name)
         else:
             for app in registered_apps:
                 if app['verbose_name'].lower() == 'user':
                     try:
                         models_index = registered_apps_models.index(app['model'])
                         registered_apps_models.pop(models_index)
-                        names_index = registered_apps_names.index(app['model']._meta.module_name)
+                        names_index = registered_apps_names.index(app['model']._meta.model_name)
                         registered_apps_names.pop(names_index)
                     except Exception as e:
                         pass
@@ -253,7 +253,7 @@ class ModelSearchForm(SearchForm):
             search_models = []
             for model in self.cleaned_data['models']:
                 class_model = models.get_model(*model.split('.'))
-                #if class_model._meta.module_name in INCLUDED_APPS:
+                #if class_model._meta.model_name in INCLUDED_APPS:
                 search_models.append(class_model)
         return search_models
 

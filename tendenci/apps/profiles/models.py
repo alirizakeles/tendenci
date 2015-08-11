@@ -8,11 +8,11 @@ from django.core.files.storage import default_storage
 from django.utils.encoding import smart_str
 from django.conf import settings
 
-from tendenci.core.base.utils import create_salesforce_contact
+from tendenci.apps.base.utils import create_salesforce_contact
 from tendenci.apps.profiles.managers import ProfileManager, ProfileActiveManager
 from tendenci.apps.entities.models import Entity
-from tendenci.core.base.models import BaseImport, BaseImportData
-from tendenci.core.base.utils import UnicodeWriter
+from tendenci.apps.base.models import BaseImport, BaseImportData
+from tendenci.apps.base.utils import UnicodeWriter
 from tendenci.libs.abstracts.models import Person
 #from tendenci.apps.user_groups.models import Group
 
@@ -54,8 +54,8 @@ class Profile(Person):
     department = models.CharField(_('department'), max_length=50, blank=True)
     education = models.CharField(_('education'), max_length=100, blank=True)
     student = models.IntegerField(_('student'), null=True, blank=True)
-    remember_login = models.BooleanField(_('remember login'))
-    exported = models.BooleanField(_('exported'))
+    remember_login = models.BooleanField(_('remember login'), default=False)
+    exported = models.BooleanField(_('exported'), default=False)
     direct_mail = models.BooleanField(_('direct mail'), default=False)
     notes = models.TextField(_('notes'), blank=True)
     admin_notes = models.TextField(_('admin notes'), blank=True)
@@ -81,6 +81,7 @@ class Profile(Person):
         permissions = (("view_profile", _("Can view profile")),)
         verbose_name = _("User")
         verbose_name_plural = _("Users")
+        app_label = 'profiles'
 
     def __unicode__(self):
         if hasattr(self, 'user'):
@@ -170,7 +171,7 @@ class Profile(Person):
         super(Profile, self).save(*args, **kwargs)
 
         try:
-            from tendenci.addons.campaign_monitor.utils import update_subscription
+            from tendenci.apps.campaign_monitor.utils import update_subscription
             if hasattr(self, 'old_email') and getattr(self, 'old_email') != self.user.email:
                 update_subscription(self, self.old_email)
                 del self.old_email
@@ -257,7 +258,7 @@ class Profile(Person):
     def get_groups(self):
         memberships = self.user.group_member.filter(group__status=True)
         return [membership.group for membership in memberships]
-    
+
     @property
     def membership(self):
         [membership] = self.user.membershipdefault_set.exclude(
@@ -394,24 +395,33 @@ class Profile(Person):
                 return role
 
 
+def get_import_file_path(instance, filename):
+    return "imports/profiles/{uuid}/{filename}".format(
+                            uuid=uuid.uuid1().get_hex()[:8],
+                            filename=filename)
+
+
 class UserImport(BaseImport):
     INTERACTIVE_CHOICES = (
         (True, _('Interactive')),
         (False, _('Not Interactive (no login)')),
     )
 
-    UPLOAD_DIR = "imports/profiles/%s" % uuid.uuid1().get_hex()[:8]
+#     UPLOAD_DIR = "imports/profiles/%s" % uuid.uuid1().get_hex()[:8]
 
     upload_file = models.FileField(_("Upload File"), max_length=260,
-                                   upload_to=UPLOAD_DIR,
+                                   upload_to=get_import_file_path,
                                    null=True)
     recap_file = models.FileField(_("Recap File"), max_length=260,
-                                   upload_to=UPLOAD_DIR, null=True)
+                                   null=True)
 
     interactive = models.BooleanField(choices=INTERACTIVE_CHOICES, default=False)
     group_id = models.IntegerField(default=0)
 
     clear_group_membership = models.BooleanField(default=False)
+
+    class Meta:
+        app_label = 'profiles'
 
     def generate_recap(self):
         if not self.recap_file and self.header_line:
@@ -443,3 +453,7 @@ class UserImport(BaseImport):
 
 class UserImportData(BaseImportData):
     uimport = models.ForeignKey(UserImport, related_name="user_import_data")
+
+    class Meta:
+        app_label = 'profiles'
+

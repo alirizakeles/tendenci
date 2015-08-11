@@ -5,7 +5,7 @@ from django.template import Context
 from django.template.loader import get_template
 from django.contrib.contenttypes.models import ContentType
 from tendenci.apps.invoices.models import Invoice
-from tendenci.core.site_settings.utils import get_setting
+from tendenci.apps.site_settings.utils import get_setting
 
 def generate_admin_email_body(entry, form_for_form):
     """
@@ -98,7 +98,7 @@ def make_invoice_for_entry(entry, **kwargs):
 
     inv = Invoice()
     inv.title = "%s Invoice" % (entry.form.title)
-    inv.object_type = ContentType.objects.get(app_label=entry._meta.app_label, model=entry._meta.module_name)
+    inv.object_type = ContentType.objects.get(app_label=entry._meta.app_label, model=entry._meta.model_name)
     inv.object_id = entry.id
     inv.subtotal = price
     inv.total = price

@@ -5,10 +5,10 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _
 from django.contrib.contenttypes.models import ContentType
-from django.contrib.contenttypes import generic
+from django.contrib.contenttypes.fields import GenericForeignKey
 from django.db.models.signals import post_save
 
-from tendenci.core.perms.utils import has_perm
+from tendenci.apps.perms.utils import has_perm
 from tendenci.apps.invoices.managers import InvoiceManager
 from tendenci.apps.invoices.listeners import update_profiles_total_spend
 from tendenci.apps.accountings.utils import (make_acct_entries,
@@ -24,7 +24,7 @@ class Invoice(models.Model):
 
     object_type = models.ForeignKey(ContentType, blank=True, null=True)
     object_id = models.IntegerField(default=0, blank=True, null=True)
-    _object = generic.GenericForeignKey('object_type', 'object_id')
+    _object = GenericForeignKey('object_type', 'object_id')
     title = models.CharField(max_length=200, blank=True, null=True)
     creator = models.ForeignKey(User, related_name="invoice_creator", null=True, on_delete=models.SET_NULL)
     creator_username = models.CharField(max_length=50, null=True)
@@ -36,7 +36,7 @@ class Invoice(models.Model):
     update_dt = models.DateTimeField(auto_now=True)
     tender_date = models.DateTimeField(null=True)
     arrival_date_time = models.DateTimeField(blank=True, null=True)
-    is_void = models.BooleanField()
+    is_void = models.BooleanField(default=False)
     status_detail = models.CharField(max_length=50, choices=STATUS_DETAIL_CHOICES, default='estimate')
     status = models.BooleanField(default=True)
     payments_credits = models.DecimalField(max_digits=15, decimal_places=2, blank=True, default=0)
@@ -46,8 +46,8 @@ class Invoice(models.Model):
     discount_amount = models.DecimalField(_('Discount Amount'), max_digits=10, decimal_places=2, default=0)
     variance = models.DecimalField(max_digits=10, decimal_places=4, default=0)
     variance_notes = models.TextField(max_length=1000, blank=True, null=True)
-    receipt = models.BooleanField(default=0)
-    gift = models.BooleanField(default=0)
+    receipt = models.BooleanField(default=False)
+    gift = models.BooleanField(default=False)
     greeting = models.CharField(max_length=500, blank=True, null=True)
     instructions = models.CharField(max_length=500, blank=True, null=True)
     po = models.CharField(max_length=50, blank=True)
@@ -59,11 +59,11 @@ class Invoice(models.Model):
     other = models.CharField(max_length=120, blank=True, null=True)
     message = models.CharField(max_length=150, blank=True, null=True)
     subtotal = models.DecimalField(max_digits=15, decimal_places=2, blank=True)
-    tax_exempt = models.BooleanField(default=1)
+    tax_exempt = models.BooleanField(default=True)
     tax_exemptid = models.CharField(max_length=50, blank=True, null=True)
     tax_rate = models.FloatField(blank=True, default=0)
-    taxable = models.BooleanField(default=0)
-    tax = models.DecimalField(max_digits=6, decimal_places=4, default=0)
+    taxable = models.BooleanField(default=False)
+    tax = models.DecimalField(max_digits=15, decimal_places=4, default=0)
     bill_to = models.CharField(max_length=120, blank=True)
     bill_to_first_name = models.CharField(max_length=100, blank=True, null=True)
     bill_to_last_name = models.CharField(max_length=100, blank=True, null=True)
@@ -99,6 +99,7 @@ class Invoice(models.Model):
 
     class Meta:
         permissions = (("view_invoice", _("Can view invoice")), )
+        app_label = 'invoices'
 
     def __unicode__(self):
         return "Invoice %s" % self.pk
@@ -194,7 +195,7 @@ class Invoice(models.Model):
         """
         self.guid = self.guid or uuid.uuid1().get_hex()
 
-        if hasattr(user, 'pk'):
+        if hasattr(user, 'pk') and not user.is_anonymous():
             self.set_creator(user)
             self.set_owner(user)
 

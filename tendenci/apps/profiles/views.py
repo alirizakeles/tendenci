@@ -22,22 +22,22 @@ from django.db import connection
 from django.views.decorators.csrf import csrf_exempt
 # for password change
 from django.views.decorators.csrf import csrf_protect
-from django.utils import simplejson
+import simplejson
 
-from johnny.cache import invalidate
+#from johnny.cache import invalidate
 
-from tendenci.core.base.decorators import ssl_required, password_required
-from tendenci.core.base.utils import get_pagination_page_range
+from tendenci.apps.base.decorators import ssl_required, password_required
+from tendenci.apps.base.utils import get_pagination_page_range
 
-from tendenci.core.perms.object_perms import ObjectPermission
-from tendenci.core.perms.utils import (has_perm, update_perms_and_save,
+from tendenci.apps.perms.object_perms import ObjectPermission
+from tendenci.apps.perms.utils import (has_perm, update_perms_and_save,
                                        get_notice_recipients,
                                        get_query_filters
                                        )
-from tendenci.core.base.http import Http403
-from tendenci.core.event_logs.models import EventLog
-from tendenci.core.site_settings.utils import get_setting
-from tendenci.core.exports.utils import render_csv
+from tendenci.apps.base.http import Http403
+from tendenci.apps.event_logs.models import EventLog
+from tendenci.apps.site_settings.utils import get_setting
+from tendenci.apps.exports.utils import render_csv
 
 # for avatar
 from avatar.models import Avatar, avatar_file_path
@@ -52,8 +52,8 @@ from tendenci.apps.profiles.forms import (ProfileForm, ExportForm,
 UserPermissionForm, UserGroupsForm, ValidatingPasswordChangeForm,
 UserMembershipForm, ProfileMergeForm, ProfileSearchForm, UserUploadForm)
 from tendenci.apps.profiles.utils import get_member_reminders, ImportUsers
-from tendenci.addons.events.models import Registrant
-from tendenci.addons.memberships.models import MembershipType
+from tendenci.apps.events.models import Registrant
+from tendenci.apps.memberships.models import MembershipType
 from tendenci.apps.invoices.models import Invoice
 
 try:
@@ -77,7 +77,7 @@ def index(request, username='', template_name="profiles/index.html"):
     user_this = get_object_or_404(User, username=username)
 
     try:
-        profile = user_this.get_profile()
+        profile = user_this.profile
     except Profile.DoesNotExist:
         profile = Profile.objects.create_profile(user=user_this)
 
@@ -136,7 +136,7 @@ def index(request, username='', template_name="profiles/index.html"):
 
     multiple_apps = False
     if get_setting('module', 'memberships', 'enabled'):
-        from tendenci.addons.memberships.models import MembershipApp
+        from tendenci.apps.memberships.models import MembershipApp
         membership_apps = MembershipApp.objects.filter(
                                status=True,
                                status_detail__in=['published',
@@ -666,7 +666,7 @@ def change_avatar(request, id, extra_context={}, next_override=None):
 @ssl_required
 @csrf_protect
 @login_required
-def password_change(request, id, template_name='registration/password_change_form.html',
+def password_change(request, id, template_name='registration/custom_password_change_form.html',
                     post_change_redirect=None, password_change_form=ValidatingPasswordChangeForm):
     user_edit = get_object_or_404(User, pk=id)
     if post_change_redirect is None:
@@ -691,9 +691,9 @@ def password_change(request, id, template_name='registration/password_change_for
     }, context_instance=RequestContext(request))
 
 @login_required
-def password_change_done(request, id, template_name='registration/password_change_done.html'):
+def password_change_done(request, id, template_name='registration/custom_password_change_done.html'):
     user_edit = get_object_or_404(User, pk=id)
-    return render_to_response(template_name, {'user_this': user_edit},  context_instance=RequestContext(request))
+    return render_to_response(template_name, {'user_this': user_edit}, context_instance=RequestContext(request))
 
 
 
@@ -1128,12 +1128,16 @@ def similar_profiles(request, template_name="profiles/similar_profiles.html"):
 
 
 @login_required
+@password_required
 def merge_profiles(request, sid, template_name="profiles/merge_profiles.html"):
 
     if not request.user.profile.is_superuser:
         raise Http403
 
     sid = str(sid)
+    if not request.session.has_key(sid):
+        return redirect("profile.similar")
+
     users_ids = (request.session[sid]).get('users', [])
     profiles = []
     for user_id in users_ids:
@@ -1149,117 +1153,102 @@ def merge_profiles(request, sid, template_name="profiles/merge_profiles.html"):
                             list=(request.session[sid]).get('users', []))
     if request.method == 'POST':
         if form.is_valid():
-            sid = str(int(time.time()))
-            request.session[sid] = {'master': form.cleaned_data["master_record"],
-                                    'users': form.cleaned_data['user_list']}
+            master = form.cleaned_data["master_record"]
+            users = form.cleaned_data['user_list']
 
-            return HttpResponseRedirect(reverse(
-                                    'profile.merge_process',
-                                    args=[sid]))
+            if master and users:
+                # get description for event log before users get deleted
+                description = 'Master user: %s, merged user(s): %s.' % (
+                                '%s %s (%s)(id=%d)' % (master.user.first_name,
+                                               master.user.last_name,
+                                               master.user.username,
+                                               master.user.id),
+                                ', '.join(['%s %s (%s)(id=%d)' % (
+                                profile.user.first_name,
+                                profile.user.last_name,
+                                profile.user.username,
+                                profile.user.id
+                                ) for profile in users if profile != master]))
+        
+                related = master.user._meta.get_all_related_objects()
+                field_names = master._meta.get_all_field_names()
+        
+                valnames = dict()
+                for r in related:
+                    if not r.model is Profile:
+                        valnames.setdefault(r.model, []).append(r.field)
+        
+                for profile in users:
+                    if profile != master:
+                        for field in field_names:
+                            if getattr(master, field) == '':
+                                setattr(master, field, getattr(profile, field))
+        
+                        for model, fields in valnames.iteritems():
+        
+                            for field in fields:
+                                if not isinstance(field, models.OneToOneField):
+                                    objs = model.objects.filter(**{field.name: profile.user})
+        
+                                    # handle unique_together fields. for example, GroupMembership
+                                    # unique_together = ('group', 'member',)
+                                    [unique_together] = model._meta.unique_together[:1] or [None]
+                                    if unique_together and field.name in unique_together:
+                                        for obj in objs:
+                                            field_values = [getattr(obj, field_name) for field_name in unique_together]
+                                            field_dict = dict(zip(unique_together, field_values))
+                                            # switch to master user
+                                            field_dict[field.name] = master.user
+                                            # check if the master record exists
+                                            if model.objects.filter(**field_dict).exists():
+                                                obj.delete()
+                                            else:
+                                                setattr(obj, field.name, master.user)
+                                                obj.save()
+                                    else:
+                                        if objs.exists():
+                                            try:
+                                                objs.update(**{field.name: master.user})
+                                            except Exception:
+                                                connection._rollback()
+                                else:  # OneToOne
+                                    [obj] = model.objects.filter(**{field.name: profile.user})[:1] or [None]
+                                    if obj:
+                                        [master_obj] = model.objects.filter(**{field.name: master.user})[:1] or [None]
+                                        if not master_obj:
+                                            setattr(obj, field.name, master.user)
+                                            obj.save()
+                                        else:
+                                            obj_fields = master_obj._meta.get_all_field_names()
+                                            updated = False
+                                            for fld in obj_fields:
+                                                master_val = getattr(master_obj, fld)
+                                                if master_val == '' or master_val is None:
+                                                    val = getattr(obj, fld)
+                                                    if val != '' and not val is None:
+                                                        setattr(master_obj, fld, val)
+                                                        updated = True
+                                            if updated:
+                                                master_obj.save()
+                                            # delete obj
+                                            obj.delete()
+        
+                        master.save()
+                        profile.user.delete()
+                        profile.delete()
+        
+                # log an event
+                EventLog.objects.log(description=description[:120])
+                #invalidate('profiles_profile')
+                messages.add_message(request, messages.SUCCESS, _('Successfully merged users. %(desc)s' % { 'desc': description}))
+        
+            return redirect("profile.search")
 
     return render_to_response(template_name, {
         'form': form,
         'profiles': profiles,
     }, context_instance=RequestContext(request))
 
-
-@login_required
-@password_required
-def merge_process(request, sid):
-    if not request.user.profile.is_superuser:
-        raise Http403
-
-    sid = str(sid)
-    master = (request.session[sid]).get('master', '')
-    users = (request.session[sid]).get('users', '')
-
-    if master and users:
-        # get description for event log before users get deleted
-        description = 'Master user: %s, merged user(s): %s.' % (
-                        '%s %s (%s)(id=%d)' % (master.user.first_name,
-                                       master.user.last_name,
-                                       master.user.username,
-                                       master.user.id),
-                        ', '.join(['%s %s (%s)(id=%d)' % (
-                        profile.user.first_name,
-                        profile.user.last_name,
-                        profile.user.username,
-                        profile.user.id
-                        ) for profile in users if profile != master]))
-
-        related = master.user._meta.get_all_related_objects()
-        field_names = master._meta.get_all_field_names()
-
-        valnames = dict()
-        for r in related:
-            if not r.model is Profile:
-                valnames.setdefault(r.model, []).append(r.field)
-
-        for profile in users:
-            if profile != master:
-                for field in field_names:
-                    if getattr(master, field) == '':
-                        setattr(master, field, getattr(profile, field))
-
-                for model, fields in valnames.iteritems():
-
-                    for field in fields:
-                        if not isinstance(field, models.OneToOneField):
-                            objs = model.objects.filter(**{field.name: profile.user})
-
-                            # handle unique_together fields. for example, GroupMembership
-                            # unique_together = ('group', 'member',)
-                            [unique_together] = model._meta.unique_together[:1] or [None]
-                            if unique_together and field.name in unique_together:
-                                for obj in objs:
-                                    field_values = [getattr(obj, field_name) for field_name in unique_together]
-                                    field_dict = dict(zip(unique_together, field_values))
-                                    # switch to master user
-                                    field_dict[field.name] = master.user
-                                    # check if the master record exists
-                                    if model.objects.filter(**field_dict).exists():
-                                        obj.delete()
-                                    else:
-                                        setattr(obj, field.name, master.user)
-                                        obj.save()
-                            else:
-                                if objs.exists():
-                                    try:
-                                        objs.update(**{field.name: master.user})
-                                    except Exception:
-                                        connection._rollback()
-                        else:  # OneToOne
-                            [obj] = model.objects.filter(**{field.name: profile.user})[:1] or [None]
-                            if obj:
-                                [master_obj] = model.objects.filter(**{field.name: master.user})[:1] or [None]
-                                if not master_obj:
-                                    setattr(obj, field.name, master.user)
-                                    obj.save()
-                                else:
-                                    obj_fields = master_obj._meta.get_all_field_names()
-                                    updated = False
-                                    for fld in obj_fields:
-                                        master_val = getattr(master_obj, fld)
-                                        if master_val == '' or master_val is None:
-                                            val = getattr(obj, fld)
-                                            if val != '' and not val is None:
-                                                setattr(master_obj, fld, val)
-                                                updated = True
-                                    if updated:
-                                        master_obj.save()
-                                    # delete obj
-                                    obj.delete()
-
-                master.save()
-                profile.user.delete()
-                profile.delete()
-
-        # log an event
-        EventLog.objects.log(description=description[:120])
-        invalidate('profiles_profile')
-        messages.add_message(request, messages.SUCCESS, _('Successfully merged users. %(desc)s' % { 'desc': description}))
-
-    return redirect("profile.search")
 
 
 @login_required
@@ -1325,7 +1314,7 @@ def profile_export_download(request, identifier):
     if not default_storage.exists(file_path):
         raise Http404
 
-    response = HttpResponse(mimetype='text/csv')
+    response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename=profiles_export_%s' % file_name
     response.content = default_storage.open(file_path).read()
     return response
@@ -1333,16 +1322,14 @@ def profile_export_download(request, identifier):
 
 @login_required
 @password_required
-def user_import_upload(request,
-            template_name='profiles/import/upload.html'):
-    """
-    Import users to the User and Profile
-    """
+def user_import_upload(request, template_name='profiles/import/upload.html'):
+    """ Import users to the User and Profile. """
+
     if not request.user.profile.is_superuser:
         raise Http403
 
-    form = UserUploadForm(request.POST or None,
-                            request.FILES or None)
+    form = UserUploadForm(request.POST or None, request.FILES or None)
+
     if request.method == 'POST':
         if form.is_valid():
             user_import = form.save(commit=False)
@@ -1350,25 +1337,21 @@ def user_import_upload(request,
             user_import.save()
 
             # redirect to preview page.
-            return redirect(reverse('profiles.user_import_preview',
-                                     args=[user_import.id]))
+            return redirect(reverse('profiles.user_import_preview', args=[user_import.id]))
 
     return render_to_response(template_name, {
         'form': form,
-        }, context_instance=RequestContext(request))
+    }, context_instance=RequestContext(request))
 
 
 @login_required
-def user_import_preview(request, uimport_id,
-                template_name='profiles/import/preview.html'):
-    """
-    Preview the import
-    """
+def user_import_preview(request, uimport_id, template_name='profiles/import/preview.html'):
+    """ Preview the import. """
 
     if not request.user.profile.is_superuser:
         raise Http403
 
-    invalidate('profiles_userimport')
+    #invalidate('profiles_userimport')
     uimport = get_object_or_404(UserImport, pk=uimport_id)
     if uimport.group_id:
         uimport.group = Group.objects.get(id=uimport.group_id)
@@ -1470,14 +1453,14 @@ def user_import_preview(request, uimport_id,
 
 @login_required
 def user_import_process(request, uimport_id):
-    """
-    Process the import
-    """
+    """ Process the import. """
+
     if not request.user.profile.is_superuser:
         raise Http403
-    invalidate('profiles_userimport')
-    uimport = get_object_or_404(UserImport,
-                                    pk=uimport_id)
+
+    #invalidate('profiles_userimport')
+
+    uimport = get_object_or_404(UserImport, pk=uimport_id)
 
     if uimport.status == 'preprocess_done':
         uimport.status = 'processing'
@@ -1493,19 +1476,16 @@ def user_import_process(request, uimport_id):
         EventLog.objects.log()
 
     # redirect to status page
-    return redirect(reverse('profiles.user_import_status',
-                                     args=[uimport.id]))
+    return redirect(reverse('profiles.user_import_status', args=[uimport.id]))
 
 
 @login_required
-def user_import_status(request, uimport_id,
-                    template_name='profiles/import/status.html'):
-    """
-    Display import status
-    """
+def user_import_status(request, uimport_id, template_name='profiles/import/status.html'):
+    """ Display import status. """
+
     if not request.user.profile.is_superuser:
         raise Http403
-    invalidate('profiles_userimport')
+    #invalidate('profiles_userimport')
     uimport = get_object_or_404(UserImport,
                                     pk=uimport_id)
     if uimport.group_id:
@@ -1515,7 +1495,7 @@ def user_import_status(request, uimport_id,
 
     return render_to_response(template_name, {
         'uimport': uimport,
-        }, context_instance=RequestContext(request))
+    }, context_instance=RequestContext(request))
 
 
 @login_required
@@ -1526,7 +1506,7 @@ def user_import_download_recap(request, uimport_id):
 
     if not request.user.profile.is_superuser:
         raise Http403
-    invalidate('profiles_userimport')
+    #invalidate('profiles_userimport')
     uimport = get_object_or_404(UserImport,
                                     pk=uimport_id)
     uimport.generate_recap()
@@ -1535,7 +1515,7 @@ def user_import_download_recap(request, uimport_id):
     recap_path = uimport.recap_file.name
     if default_storage.exists(recap_path):
         response = HttpResponse(default_storage.open(recap_path).read(),
-                                mimetype='text/csv')
+                                content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename=%s' % filename
         return response
     else:
@@ -1550,7 +1530,7 @@ def user_import_get_status(request, uimport_id):
     """
     if not request.user.profile.is_superuser:
         raise Http403
-    invalidate('profiles_userimport')
+    #invalidate('profiles_userimport')
     uimport = get_object_or_404(UserImport,
                                     pk=uimport_id)
 
@@ -1575,7 +1555,7 @@ def user_import_check_preprocess_status(request, uimport_id):
     """
     if not request.user.profile.is_superuser:
         raise Http403
-    invalidate('profiles_userimport')
+    #invalidate('profiles_userimport')
     uimport = get_object_or_404(UserImport,
                                     pk=uimport_id)
 

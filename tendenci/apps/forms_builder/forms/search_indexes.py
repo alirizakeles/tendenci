@@ -1,14 +1,18 @@
 from django.utils.html import strip_tags, strip_entities
 
 from haystack import indexes
-from haystack import site
-from tendenci.apps.forms_builder.forms.models import Form
-from tendenci.core.perms.indexes import TendenciBaseSearchIndex
 
-class FormsIndex(TendenciBaseSearchIndex):
+from tendenci.apps.forms_builder.forms.models import Form
+from tendenci.apps.perms.indexes import TendenciBaseSearchIndex
+
+class FormsIndex(TendenciBaseSearchIndex, indexes.Indexable):
     title = indexes.CharField(model_attr='title')
     intro = indexes.CharField(model_attr='intro')
     response = indexes.CharField(model_attr='response')
+
+    @classmethod
+    def get_model(self):
+        return Form
 
     def prepare_intro(self, obj):
         intro = obj.intro
@@ -22,4 +26,4 @@ class FormsIndex(TendenciBaseSearchIndex):
         response = strip_entities(response)
         return response
 
-site.register(Form, FormsIndex)
+

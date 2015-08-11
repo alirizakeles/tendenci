@@ -2,11 +2,12 @@ from datetime import datetime
 
 from django.db.models import Q
 from django.utils.translation import ugettext_lazy as _
+from django.core.urlresolvers import reverse
 
-from tendenci.core.rss.feedsmanager import SubFeed
-from tendenci.core.site_settings.utils import get_setting
-from tendenci.core.perms.utils import PUBLIC_FILTER
-from tendenci.core.sitemaps import TendenciSitemap
+from tendenci.apps.rss.feedsmanager import SubFeed
+from tendenci.apps.site_settings.utils import get_setting
+from tendenci.apps.perms.utils import PUBLIC_FILTER
+from tendenci.apps.sitemaps import TendenciSitemap
 
 from tendenci.apps.stories.models import Story
 
@@ -43,4 +44,4 @@ class StorySitemap(TendenciSitemap):
         return obj.update_dt
 
     def location(self, obj):
-        return obj.full_story_link
+        return reverse("story", args=[obj.pk])

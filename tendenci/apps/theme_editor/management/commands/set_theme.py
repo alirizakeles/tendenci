@@ -11,12 +11,16 @@ class Command(BaseCommand):
     """
     Example: python manage.py set_theme thinksmart
     """
+    
+    def add_arguments(self, parser):
+        # Positional arguments
+        parser.add_argument('theme_name')
 
     def handle(self, theme_name, **options):
         """
         Set the website theme via theme name
         """
-        from tendenci.core.site_settings.models import Setting
+        from tendenci.apps.site_settings.models import Setting
 
         try:
             setting = Setting.objects.get(

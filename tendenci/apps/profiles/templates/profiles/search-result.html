@@ -21,7 +21,6 @@
                             {% endif %}({{ profile.user.username }})
                         </a>
                     </h2>
-
                     <div class="col-md-3 col-xs-12" style="line-height:46px;">
                         {% if membership %}
                             <a href="{% url 'admin:memberships_membershipdefault_change' membership.pk %}">{% trans "Edit Membership" %}</a>

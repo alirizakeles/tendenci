@@ -18,28 +18,29 @@ from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _
 from djcelery.models import TaskMeta
 
-from tendenci.core.perms.decorators import is_enabled
-from tendenci.core.theme.shortcuts import themed_response as render_to_response
-from tendenci.core.base.http import Http403
-from tendenci.core.base.utils import template_exists
-from tendenci.core.perms.utils import (has_perm, update_perms_and_save,
+from tendenci.apps.perms.decorators import is_enabled
+from tendenci.apps.theme.shortcuts import themed_response as render_to_response
+from tendenci.apps.base.http import Http403
+from tendenci.apps.base.utils import template_exists
+from tendenci.apps.perms.utils import (has_perm, update_perms_and_save,
     get_query_filters, has_view_perm)
-from tendenci.core.event_logs.models import EventLog
-from tendenci.core.site_settings.utils import get_setting
+from tendenci.apps.event_logs.models import EventLog
+from tendenci.apps.site_settings.utils import get_setting
 from tendenci.apps.invoices.models import Invoice
 from tendenci.apps.profiles.models import Profile
-from tendenci.addons.recurring_payments.models import RecurringPayment
-from tendenci.core.exports.utils import run_export_task
+from tendenci.apps.recurring_payments.models import RecurringPayment
+from tendenci.apps.exports.utils import run_export_task
 
-from tendenci.apps.forms_builder.forms.forms import (FormForForm, FormForm, FormForField,
-    PricingForm, BillingForm)
+from tendenci.apps.forms_builder.forms.forms import (
+    FormForForm, FormForm, FormForField, PricingForm, BillingForm
+)
 from tendenci.apps.forms_builder.forms.models import Form, Field, FormEntry, Pricing
 from tendenci.apps.forms_builder.forms.utils import (generate_admin_email_body,
     generate_submitter_email_body, generate_email_subject,
     make_invoice_for_entry, update_invoice_for_entry)
 from tendenci.apps.forms_builder.forms.formsets import BaseFieldFormSet
 from tendenci.apps.forms_builder.forms.tasks import FormEntriesExportTask
-from tendenci.core.emails.models import Email
+from tendenci.apps.emails.models import Email
 
 
 @is_enabled('forms')
@@ -72,7 +73,7 @@ def add(request, form_class=FormForm, template_name="forms/add.html"):
 
     return render_to_response(template_name, {
         'form':form,
-        'formset':formset,
+        'formset': formset,
     }, context_instance=RequestContext(request))
 
 
@@ -309,7 +310,7 @@ def entries_export(request, id, include_files=False):
             return redirect('form_entries_export_status', task_id)
     else:
         # blank csv document
-        response = HttpResponse(mimetype='text/csv')
+        response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename=export_entries_%d.csv' % time()
         writer = csv.writer(response, delimiter=',')
 
@@ -551,15 +552,21 @@ def form_detail(request, slug, template="forms/form_detail.html"):
             if form.completion_url:
                 return HttpResponseRedirect(form.completion_url)
             return redirect("form_sent", form.slug)
-    # set form's template to default if no template or template doesn't exist
+
+    # set form's template to forms/base.html if no template or template doesn't exist
     if not form.template or not template_exists(form.template):
-        form.template = "default.html"
+        form.template = "forms/base.html"
+
+    # NOTE: Temporarily use forms/base.html for the meantime
+    form.template = "forms/base.html"
+
     context = {
         "form": form,
         "form_for_form": form_for_form,
         'form_template': form.template,
     }
     return render_to_response(template, context, RequestContext(request))
+
 
 def form_sent(request, slug, template="forms/form_sent.html"):
     """
@@ -646,7 +653,7 @@ def files(request, id):
     from django.http import Http404
     from django.core.files.base import ContentFile
     from django.core.files.storage import default_storage
-    from tendenci.core.perms.utils import has_view_perm
+    from tendenci.apps.perms.utils import has_view_perm
     from tendenci.apps.forms_builder.forms.models import FieldEntry
 
     field = get_object_or_404(FieldEntry, pk=id)
@@ -668,6 +675,6 @@ def files(request, id):
     f = ContentFile(data)
 
     EventLog.objects.log()
-    response = HttpResponse(f.read(), mimetype=mime_type)
+    response = HttpResponse(f.read(), content_type=mime_type)
     response['Content-Disposition'] = 'filename=%s' % base_name
     return response

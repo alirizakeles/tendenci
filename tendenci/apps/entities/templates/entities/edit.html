@@ -5,16 +5,8 @@
 
 {% block title %}{{ block.super }}{% trans 'Edit' %}{% endblock %}
 
-{% block extra_head %}
-{{ block.super }}
-<link rel="stylesheet" href="{{ STATIC_URL }}css/entities.css">
-{% endblock %}
-
-{% block body %}
+{% block content %}
 <div class="t">
-
-    {% entity_nav request.user entity %}
-
     <h1>{% firstof MODULE_ENTITIES_LABEL trans 'Entities' %} {% trans "Edit" %}</h1>
 
     <div class="entities-wrap">
@@ -24,7 +16,7 @@
              </div>
         </div>
 
-        <form action="{% url entity.edit entity.pk %}" method="post">{% csrf_token %}
+        <form action="{% url "entity.edit" entity.pk %}" method="post">{% csrf_token %}
         <div class="forms">
             {{ form|styled_form }}
             <input type="submit" value="{% trans 'Save Changes' %}" />

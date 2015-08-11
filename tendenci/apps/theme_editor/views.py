@@ -6,21 +6,21 @@ from django.template import RequestContext
 from django.conf import settings
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
-from django.utils import simplejson as json
+import simplejson as json
 from django.views.decorators.csrf import csrf_exempt
 from django.core.management import call_command
 from django.utils.translation import ugettext_lazy as _
 
-from tendenci.core.base.decorators import flash_login_required
-from tendenci.core.base.http import Http403
-from tendenci.core.base.managers import SubProcessManager
-from tendenci.core.base.models import UpdateTracker
-from tendenci.core.base.utils import get_template_list, checklist_update
-from tendenci.core.site_settings.utils import get_setting
-from tendenci.core.site_settings.models import Setting
-from tendenci.core.perms.utils import has_perm
-from tendenci.core.event_logs.models import EventLog
-from tendenci.core.theme.utils import get_theme, theme_choices as theme_choice_list
+from tendenci.apps.base.decorators import flash_login_required
+from tendenci.apps.base.http import Http403
+from tendenci.apps.base.managers import SubProcessManager
+from tendenci.apps.base.models import UpdateTracker
+from tendenci.apps.base.utils import get_template_list, checklist_update
+from tendenci.apps.site_settings.utils import get_setting
+from tendenci.apps.site_settings.models import Setting
+from tendenci.apps.perms.utils import has_perm
+from tendenci.apps.event_logs.models import EventLog
+from tendenci.apps.theme.utils import get_theme, theme_choices as theme_choice_list
 from tendenci.libs.boto_s3.utils import delete_file_from_s3
 from tendenci.apps.theme_editor.models import ThemeFileVersion
 from tendenci.apps.theme_editor.forms import (FileForm,
@@ -128,7 +128,7 @@ def edit_file(request, form_class=FileForm, template_name="theme_editor/index.ht
                 EventLog.objects.log()
 
         response = json.dumps({'status':response_status, 'message':response_message})
-        return HttpResponse(response, mimetype="application/json")
+        return HttpResponse(response, content_type="application/json")
 
     content = get_file_content(default_file,  ROOT_DIR=theme_root)
     file_form = form_class({"content": content, "rf_path": default_file})
@@ -370,7 +370,7 @@ def upload_file(request):
             if os.path.isfile(full_filename) and not overwrite:
                 msg_string = 'File %s already exists in that folder.' % (upload.name)
                 messages.add_message(request, messages.ERROR, _(msg_string))
-                return HttpResponse('invalid', mimetype="text/plain")
+                return HttpResponse('invalid', content_type="text/plain")
             else:
                 handle_uploaded_file(upload, file_dir)
                 msg_string = 'Successfully uploaded %s.' % (upload.name)
@@ -379,11 +379,11 @@ def upload_file(request):
                 EventLog.objects.log()
                 # returning a response of "ok" (flash likes this)
                 # response is for flash, not humans
-                return HttpResponse('valid', mimetype="text/plain")
+                return HttpResponse('valid', content_type="text/plain")
 
         else:  # not valid
             messages.add_message(request, messages.ERROR, form.errors)
-            return HttpResponse('invalid', mimetype="text/plain")
+            return HttpResponse('invalid', content_type="text/plain")
     else:
         form = UploadForm()
 
@@ -434,7 +434,7 @@ def theme_color(request):
 
             message = _('Successfully updated theme colors.')
             response = json.dumps({'message': message})
-            return HttpResponse(response, mimetype="application/json")
+            return HttpResponse(response, content_type="application/json")
 
     raise Http404
 

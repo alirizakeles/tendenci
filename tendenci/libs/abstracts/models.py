@@ -2,21 +2,21 @@ from django.db import models
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _
-from django.contrib.contenttypes import generic
+from django.contrib.contenttypes.fields import GenericRelation
 from django.utils.safestring import mark_safe
 from timezones.fields import TimeZoneField
 
-from tendenci.core.event_logs.models import EventLog
-from tendenci.core.perms.object_perms import ObjectPermission
+from tendenci.apps.event_logs.models import EventLog
+from tendenci.apps.perms.object_perms import ObjectPermission
 
 # Abstract base class for authority fields
 class TendenciBaseModel(models.Model):
     # authority fields
-    allow_anonymous_view = models.BooleanField(_("Public can view"), default=True)
-    allow_user_view = models.BooleanField(_("Signed in user can view"))
-    allow_member_view = models.BooleanField()
-    allow_user_edit = models.BooleanField(_("Signed in user can change"))
-    allow_member_edit = models.BooleanField()
+    allow_anonymous_view = models.NullBooleanField(_("Public can view"), default=True)
+    allow_user_view = models.NullBooleanField(_("Signed in user can view"))
+    allow_member_view = models.NullBooleanField()
+    allow_user_edit = models.NullBooleanField(_("Signed in user can change"))
+    allow_member_edit = models.NullBooleanField()
 
     create_dt = models.DateTimeField(auto_now_add=True)
     update_dt = models.DateTimeField(auto_now=True)
@@ -24,7 +24,7 @@ class TendenciBaseModel(models.Model):
     creator_username = models.CharField(max_length=50)
     owner = models.ForeignKey(User, related_name="%(app_label)s_%(class)s_owner")
     owner_username = models.CharField(max_length=50)
-    status = models.BooleanField(_("Active"), default=True)
+    status = models.NullBooleanField("Active", default=True)
     status_detail = models.CharField(max_length=50, default='active')
 
     class Meta:
@@ -36,12 +36,12 @@ class TendenciBaseModel(models.Model):
 
     @property
     def opt_module_name(self):
-        return self._meta.module_name
+        return self._meta.model_name
 
     @property
     def obj_perms(self):
-        from tendenci.core.perms.fields import has_groups_perms
-        t = '<span class="perm-%s">%s</span>'
+        from tendenci.apps.perms.fields import has_groups_perms
+        t = '<span class="t-profile-perm t-perm-%s">%s</span>'
 
         if self.allow_anonymous_view:
             value = t % ('public','Public')
@@ -58,7 +58,7 @@ class TendenciBaseModel(models.Model):
 
     @property
     def obj_status(obj):
-        t = '<span class="status-%s">%s</span>'
+        t = '<span class="t-profile-status t-status-%s">%s</span>'
 
         if obj.status:
             if obj.status_detail == 'paid - pending approval':
@@ -91,8 +91,12 @@ class TendenciBaseModel(models.Model):
         super(TendenciBaseModel, self).delete(*args, **kwargs)
 
 
+class UnsavedOneToOne(models.OneToOneField):
+    # A ForeignKey which can point to an unsaved object
+    allow_unsaved_instance_assignment = True
+
 class Person(TendenciBaseModel):
-    user = models.OneToOneField(User, related_name="profile", verbose_name=_('user'))
+    user = UnsavedOneToOne(User, related_name="profile", verbose_name=_('user'))
     phone = models.CharField(_('phone'), max_length=50, blank=True)
     address = models.CharField(_('address'), max_length=150, blank=True)
     address2 = models.CharField(_('address2'), max_length=100, default='', blank=True)
@@ -118,7 +122,7 @@ class Person(TendenciBaseModel):
     time_zone = TimeZoneField(_('timezone'))
     language = models.CharField(_('language'), max_length=10, choices=settings.LANGUAGES, default=settings.LANGUAGE_CODE)
 
-    perms = generic.GenericRelation(ObjectPermission,
+    perms = GenericRelation(ObjectPermission,
         object_id_field="object_id", content_type_field="content_type")
 
     class Meta:

@@ -3,10 +3,10 @@ from django.core.urlresolvers import reverse
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 
-from tendenci.core.event_logs.models import EventLog
-from tendenci.core.perms.utils import get_notice_recipients
-from tendenci.core.perms.utils import update_perms_and_save
-from tendenci.core.meta.models import Meta as MetaTags
+from tendenci.apps.event_logs.models import EventLog
+from tendenci.apps.perms.utils import get_notice_recipients
+from tendenci.apps.perms.utils import update_perms_and_save
+from tendenci.apps.meta.models import Meta as MetaTags
 from tendenci.apps.pages.models import Page
 from tendenci.apps.pages.forms import PageAdminForm
 
@@ -20,7 +20,7 @@ class PageAdmin(admin.ModelAdmin):
     list_display = ('view_on_site', 'edit_link', 'title', 'link', 'syndicate',
                     'allow_anonymous_view','status_detail', 'group', 'tags')
     search_fields = ('title','content',)
-    list_editable = ['title', 'tags', 'status_detail', 'group']
+    list_editable = ['title', 'tags', 'group']
     list_filter = ('group', )
     fieldsets = (
         (None, {'fields': ('title', 'slug', 'content', 'group', 'tags', 'template')}),

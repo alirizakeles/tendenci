@@ -6,19 +6,19 @@ from django.contrib import messages
 from django.http import HttpResponse, HttpResponseRedirect
 from django.core.urlresolvers import reverse
 from django.forms.models import modelformset_factory
-from django.utils import simplejson as json
+import simplejson as json
 from django.conf import settings
 from django.db.models import Q
 
-from tendenci.core.theme.shortcuts import themed_response as render_to_response
-from tendenci.core.base.http import Http403
-from tendenci.core.base.utils import checklist_update
-from tendenci.core.event_logs.models import EventLog
-from tendenci.core.site_settings.utils import get_setting
-from tendenci.core.perms.decorators import is_enabled
-from tendenci.core.perms.utils import has_perm, update_perms_and_save, get_query_filters, has_view_perm
+from tendenci.apps.theme.shortcuts import themed_response as render_to_response
+from tendenci.apps.base.http import Http403
+from tendenci.apps.base.utils import checklist_update
+from tendenci.apps.event_logs.models import EventLog
+from tendenci.apps.site_settings.utils import get_setting
+from tendenci.apps.perms.decorators import is_enabled
+from tendenci.apps.perms.utils import has_perm, update_perms_and_save, get_query_filters, has_view_perm
 from tendenci.apps.pages.models import Page
-from tendenci.core.exports.utils import run_export_task
+from tendenci.apps.exports.utils import run_export_task
 
 from tendenci.apps.navs.models import Nav, NavItem
 from tendenci.apps.pages.models import Page
@@ -199,10 +199,10 @@ def page_select(request, form_class=PageSelectForm):
                 })
             return HttpResponse(json.dumps({
                 "pages": infos,
-            }), mimetype="text/plain")
+            }), content_type="text/plain")
     return HttpResponse(json.dumps({
                 "error": True
-            }), mimetype="text/plain")
+            }), content_type="text/plain")
 
 
 @is_enabled('navs')

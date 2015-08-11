@@ -7,9 +7,9 @@ from django.utils.translation import ugettext_lazy as _
 
 from tendenci.apps.user_groups.models import Group, GroupMembership
 from tendenci.apps.user_groups.utils import member_choices
-from tendenci.core.perms.forms import TendenciBaseForm
+from tendenci.apps.perms.forms import TendenciBaseForm
 from tendenci.apps.entities.models import Entity
-from tendenci.core.site_settings.utils import get_setting
+from tendenci.apps.site_settings.utils import get_setting
 
 
 SEARCH_CATEGORIES = (

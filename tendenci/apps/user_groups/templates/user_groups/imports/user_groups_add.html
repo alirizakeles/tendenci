@@ -1,5 +1,5 @@
 {% extends "user_groups/base.html" %}
-{% load pagination_tags %}
+{% load bootstrap_pagination_tags %}
 {% load user_group_tags %}
 {% load base_tags %}
 {% load perm_tags %}
@@ -13,9 +13,8 @@
 <link rel="stylesheet" href="{{ STATIC_URL }}css/usergroups.css">
 {% endblock %}
 
-{% block body %}
+{% block content %}
 <div class="t">
-{% user_group_nav request.user %}
 
 <div class="imports">
     <h1>{% firstof MODULE_USERGROUPS_LABEL_PLURAL trans 'User Groups' %} {% trans "Import" %}</h1>
@@ -27,7 +26,7 @@
     <div class="download-csv">
         <img src="{{ STATIC_URL }}images/icons/xls-icon.gif" alt="{% trans 'Download CSV Template' %}" title="{% trans 'Download CSV Template' %}"/>
         <div class="item-right">
-            <p style="margin-bottom:0;"><a href="{% url group.import_download_template %}">{% trans "Download template" %}</a></p>
+            <p style="margin-bottom:0;"><a href="{% url "group.import_download_template" %}">{% trans "Download template" %}</a></p>
         </div>
         <div class="clear-both"></div>
     </div>

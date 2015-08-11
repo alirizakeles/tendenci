@@ -1,5 +1,5 @@
 {% extends "invoices/base.html" %}
-{% load pagination_tags %}
+{% load bootstrap_pagination_tags %}
 {% load invoice_tags %}
 {% load base_filters %}
 {% load i18n %}
@@ -31,11 +31,10 @@
     </style>
 {% endblock %}
 
-{% block body %}
+{% block content %}
     <div class="t">
         <div class="t-invoice">
             <div class="t-search">
-                {% invoice_nav  %}
                 <h1>{{ SITE_GLOBAL_SITEDISPLAYNAME }} {% trans "Invoice Search" %}</h1>
                 {% invoice_search %}
                 {% autopaginate invoices 25 %}

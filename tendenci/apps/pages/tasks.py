@@ -1,11 +1,11 @@
 import os
 from django.forms.models import model_to_dict
 from django.db.models.fields.related import ManyToManyField, ForeignKey
-from django.contrib.contenttypes import generic
+from django.contrib.contenttypes.fields import GenericRelation
 from celery.task import Task
 from celery.registry import tasks
-from tendenci.core.perms.models import TendenciBaseModel
-from tendenci.core.exports.utils import render_csv
+from tendenci.apps.perms.models import TendenciBaseModel
+from tendenci.apps.exports.utils import render_csv
 from tendenci.apps.pages.models import Page
 
 class PagesExportTask(Task):
@@ -58,7 +58,7 @@ class PagesExportTask(Task):
                         value = ["%s" % obj for obj in f.value_from_object(page)]
                     if isinstance(f, ForeignKey):
                         value = getattr(page, f.name)
-                    if isinstance(f, generic.GenericRelation):
+                    if isinstance(f, GenericRelation):
                         generics = f.value_from_object(page).all()
                         value = ["%s" % obj for obj in generics]
                     else:

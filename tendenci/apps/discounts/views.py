@@ -1,26 +1,23 @@
 from django.utils.translation import ugettext_lazy as _
-from django.utils import simplejson as json
+import simplejson as json
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect
 from django.template import RequestContext
 from django.contrib import messages
-from django.http import HttpResponse, HttpResponseRedirect
-from django.conf import settings
+from django.http import HttpResponse
 
-from tendenci.core.base.http import Http403
-from tendenci.core.perms.decorators import is_enabled
-from tendenci.core.perms.utils import has_perm, update_perms_and_save, get_query_filters
-from tendenci.core.event_logs.models import EventLog
-from tendenci.core.theme.shortcuts import themed_response as render_to_response
-from tendenci.core.exports.utils import run_export_task
+from tendenci.apps.base.http import Http403
+from tendenci.apps.perms.decorators import is_enabled
+from tendenci.apps.perms.utils import has_perm, update_perms_and_save, get_query_filters
+from tendenci.apps.event_logs.models import EventLog
+from tendenci.apps.theme.shortcuts import themed_response as render_to_response
+from tendenci.apps.exports.utils import run_export_task
 
-from tendenci.addons.events.models import Registration
-from tendenci.addons.memberships.models import MembershipSet
+from tendenci.apps.events.models import Registration
+from tendenci.apps.memberships.models import MembershipSet
 from tendenci.apps.discounts.models import Discount, DiscountUse
 from tendenci.apps.discounts.forms import DiscountForm, DiscountCodeForm, DiscountHandlingForm
-from tendenci.core.site_settings.utils import get_setting
-from tendenci.apps.redirects.models import Redirect
 
 
 @is_enabled('discounts')
@@ -46,7 +43,7 @@ def search(request, template_name="discounts/search.html"):
 
 @is_enabled('discounts')
 @login_required
-def detail(request, id, template_name="discounts/detail.html"):
+def detail(request, id, template_name="discounts/view.html"):
     discount = get_object_or_404(Discount, id=id)
 
     if not has_perm(request.user, 'discounts.view_discount', discount):
@@ -156,17 +153,17 @@ def discounted_price(request, form_class=DiscountCodeForm):
                     "price": unicode(form.new_price()[0]),
                     "discount": unicode(form.new_price()[1]),
                     "message": _("Your discount of $ %(p)s has been added." % {'p': unicode(form.new_price()[1])}),
-                }), mimetype="text/plain")
+                }), content_type="text/plain")
         return HttpResponse(json.dumps(
             {
                 "error": True,
                 "message": _("This is not a valid discount code."),
-            }), mimetype="text/plain")
+            }), content_type="text/plain")
     else:
         form = form_class()
     return HttpResponse(
         "<form action='' method='post'>" + form.as_p() + "<input type='submit' value='check'> </form>",
-        mimetype="text/html")
+        content_type="text/html")
 
 
 @is_enabled('discounts')
@@ -180,7 +177,7 @@ def discounted_prices(request, check=False, form_class=DiscountHandlingForm):
                 {
                     "error": False,
                     "message": _("A discount of $%(d)s has been added." % { 'd': form.discount.value}),
-                }), mimetype="text/plain")
+                }), content_type="text/plain")
 
             price_list, discount_total, discount_list, msg = form.get_discounted_prices()
             total = sum(price_list)
@@ -199,17 +196,17 @@ def discounted_prices(request, check=False, form_class=DiscountHandlingForm):
                         'm' : unicode(msg),
                         'dt' : unicode(discount_total),
                         'dd' : discount_detail }),
-                }), mimetype="text/plain")
+                }), content_type="text/plain")
         return HttpResponse(json.dumps(
             {
                 "error": True,
                 "message": _("This is not a valid discount code."),
-            }), mimetype="text/plain")
+            }), content_type="text/plain")
     else:
         form = form_class()
     return HttpResponse(
         "<form action='' method='post'>" + form.as_p() + "<input type='submit' value='check'> </form>",
-        mimetype="text/html")
+        content_type="text/html")
 
 @is_enabled('discounts')
 @login_required

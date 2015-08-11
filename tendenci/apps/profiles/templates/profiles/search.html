@@ -1,9 +1,9 @@
 {% extends "profiles/base-wide.html" %}
 {% load i18n %}
-{% load static from staticfiles %}
+{% load staticfiles %}
 {% load avatar_tags %}
 {% load base_filters %}
-{% load pagination_tags %}
+{% load bootstrap_pagination_tags %}
 {% load perm_tags %}
 {% load profile_tags %}
 {% load search_tags %}
@@ -13,8 +13,9 @@
 
 {% block extra_head %}
     {{ block.super }}
-    <link rel="stylesheet" href="{% static 'css/iconrow.css' %}">
-    <link rel="stylesheet" href="{% static 'css/profiles.css' %}">
+    <link rel="stylesheet" href="{% static 'css/iconrow.css' %}" type="text/css">
+    <link rel="stylesheet" href="{% static 'css/profiles.css' %}" type="text/css">
+    <link rel="stylesheet" href="{% static 'css/search.css' %}" type="text/css">
 
     <style>
         #id_first_name,
@@ -61,11 +62,10 @@
 {% endblock %}
 
 
-{% block body %}
+{% block content %}
     {{ block.super }}
 
     <div class="t">
-        {% users_nav request.user user_this %}
 
         <h1>{% if SITE_GLOBAL_SEARCHINDEX %}{% trans "People Search" %}{% else %}{% trans "People List" %}{% endif %}</h1>
 

@@ -3,7 +3,7 @@
 {% load base_filters %}
 {% load user_group_tags %}
 {% load perm_tags %}
-{% load pagination_tags %}
+{% load bootstrap_pagination_tags %}
 {% load i18n %}
 
 {% block title %}{% blocktrans with g=group.name %}{{ g }} - Group{% endblocktrans %}{% endblock %}
@@ -15,14 +15,12 @@
 <link rel="stylesheet" href="{{ STATIC_URL }}css/popover.css">
 {% endblock %}
 
-{% block body %}
+{% block content %}
 {% has_perm user user_groups.change_group group as can_edit %}
 {% has_perm user user_groups.delete_group group as can_delete %}
 
 <div class="t">
     <div class="group-view">
-        {% user_group_nav request.user group %}
-
         <h1>{{ group.name }}</h1>
 
         {% if form.errors %}

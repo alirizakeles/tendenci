@@ -1,9 +1,8 @@
-import os
 from django.template import TemplateSyntaxError, TemplateDoesNotExist, Variable
-from django.template import Library, Template
+from django.template import Library
 from django.conf import settings
 from django.template.loader import get_template
-from django.template.loader_tags import ExtendsNode, IncludeNode, ConstantIncludeNode
+from django.template.loader_tags import IncludeNode
 from django.utils.translation import ugettext_lazy as _
 
 register = Library()
@@ -17,6 +16,7 @@ class SearchResultNode(IncludeNode):
         """
         This does not take into account preview themes.
         """
+
         try:
             result = self.result.resolve(context)
 
@@ -25,7 +25,7 @@ class SearchResultNode(IncludeNode):
             else:
                 result_object = result
 
-            if not result_object:
+            if not result_object or not result_object._meta:
                 return u''
 
             var_name = result_object._meta.verbose_name.replace(' ', '_').lower()
@@ -56,6 +56,15 @@ class SearchResultNode(IncludeNode):
                 template_name = "memberships/entries/search-result.html"
             else:
                 template_name = "%s/search-result.html" % (result_object._meta.app_label)
+
+            print template_name
+
+            # Special case for Contribution instances
+            if result.__class__.__name__.lower() == 'contribution':
+                var_name = 'contribution'
+                template_name = 'contributions/search-result.html'
+                result_object = result
+
             try:
                 t = get_template(template_name)
             except TemplateDoesNotExist:
@@ -66,11 +75,13 @@ class SearchResultNode(IncludeNode):
                 "result": result,
                 var_name: result_object,
             })
+
             return t.render(context)
         except:
             if settings.TEMPLATE_DEBUG:
                 raise
             return ''
+
 
 def search_result(parser, token):
     """

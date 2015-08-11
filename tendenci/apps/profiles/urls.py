@@ -1,5 +1,6 @@
-from django.conf.urls.defaults import patterns, url
-from tendenci.core.site_settings.utils import get_setting
+from django.conf.urls import patterns, url
+from django.views.generic import RedirectView
+from tendenci.apps.site_settings.utils import get_setting
 
 urlpath = get_setting('module', 'users', 'url')
 if not urlpath:
@@ -13,7 +14,6 @@ urlpatterns = patterns('tendenci.apps.profiles.views',
     url(r'^%s/edit/(?P<id>\d+)/$' % urlpath, 'edit', name="profile.edit"),
     url(r'^%s/similar/$' % urlpath, 'similar_profiles', name="profile.similar"),
     url(r'^%s/merge/(?P<sid>\d+)/$' % urlpath, 'merge_profiles', name="profile.merge_view"),
-    url(r'^%s/merge/process/(?P<sid>\d+)/$' % urlpath, 'merge_process', name="profile.merge_process"),
     url(r'^%s/edit_perms/(?P<id>\d+)/$' % urlpath, 'edit_user_perms', name="profile.edit_perms"),
     url(r'^%s/avatar/(?P<id>\d+)/$' % urlpath, 'change_avatar', name="profile.change_avatar"),
     url(r'^%s/delete/(?P<id>\d+)/$' % urlpath, 'delete', name="profile.delete"),
@@ -59,6 +59,5 @@ urlpatterns = patterns('tendenci.apps.profiles.views',
 
 urlpatterns += patterns('',
     # Special redirect for user.get_absolute_url
-    url(r'^users/(?P<username>[+-.\w\d@\s]+)/$', 'django.views.generic.simple.redirect_to', {
-        'url': '/%s/%s/' % (urlpath, '%(username)s')}),
+    url(r'^users/(?P<username>[+-.\w\d@\s]+)/$', RedirectView.as_view(url='/%s/%s/' % (urlpath, '%(username)s'), permanent=True)),
 )

@@ -17,14 +17,14 @@ from django.http import HttpResponseRedirect, Http404, HttpResponse
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 
-from tendenci.core.base.decorators import password_required
-from tendenci.core.base.http import Http403
-from tendenci.core.theme.shortcuts import themed_response as render_to_response
-from tendenci.core.perms.decorators import is_enabled, superuser_required
-from tendenci.core.perms.utils import has_perm, update_perms_and_save
-from tendenci.core.event_logs.models import EventLog
+from tendenci.apps.base.decorators import password_required
+from tendenci.apps.base.http import Http403
+from tendenci.apps.theme.shortcuts import themed_response as render_to_response
+from tendenci.apps.perms.decorators import is_enabled, superuser_required
+from tendenci.apps.perms.utils import has_perm, update_perms_and_save
+from tendenci.apps.event_logs.models import EventLog
 from tendenci.apps.notifications.utils import send_notifications
-from tendenci.core.payments.forms import MarkAsPaidForm
+from tendenci.apps.payments.forms import MarkAsPaidForm
 from tendenci.apps.invoices.models import Invoice
 from tendenci.apps.invoices.forms import AdminNotesForm, AdminAdjustForm, InvoiceSearchForm
 
@@ -73,6 +73,7 @@ def view(request, id, guid=None, form_class=AdminNotesForm, template_name="invoi
         'guid': guid,
         'notify': notify,
         'form': form,
+        'can_pay': invoice.allow_payment_by(request.user, guid),
         'merchant_login': merchant_login},
         context_instance=RequestContext(request))
 
@@ -553,7 +554,7 @@ def export_download(request, identifier):
     if not default_storage.exists(file_path):
         raise Http404
 
-    response = HttpResponse(mimetype='text/csv')
+    response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename=invoice_export_%s' % file_name
     response.content = default_storage.open(file_path).read()
     return response

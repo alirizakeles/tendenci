@@ -1,47 +1,58 @@
 {% extends "contributions/base.html" %}
-{% load pagination_tags %}
-{% load contribution_tags %}
-{% load base_tags %}
-{% load perm_tags %}
 {% load i18n %}
+{% load base_tags %}
+{% load bootstrap_pagination_tags %}
+{% load contribution_tags %}
+{% load perm_tags %}
+{% load search_tags %}
 
-{% block title %}{{ block.super }}{% trans "Search" %}{% endblock %}
 
-{% block extra_head %}
-{{ block.super }}
-<link rel="stylesheet" href="{{ STATIC_URL }}css/contribution.css">
+{% block title %}
+    {% if MODULE_CONTRIBUTIONS_LABEL_PLURAL %}
+        {% blocktrans %}{{ MODULE_CONTRIBUTIONS_LABEL_PLURAL }} Search{% endblocktrans %}
+    {% else %}
+        {% trans "Contributions Search" %}
+    {% endif %} - {{ block.super }}
 {% endblock %}
 
-{% block body %}
-<div class="t">
+{% block content_classes %}{{ block.super }} t-search-view{% endblock %}
 
-    {% contribution_nav request.user %}
-
-    <h1>{{ SITE_GLOBAL_SITEPRIMARYKEYWORDS }} {% firstof MODULE_CONTRIBUTION_LABEL trans 'Contributions' %} Search</h1>
+{% block content %}
+    <h1>
+        {% firstof trans SITE_GLOBAL_SITEPRIMARYKEYWORDS trans SITE_GLOBAL_SITEDISPLAYNAME %}
+        {% if MODULE_CONTRIBUTIONS_LABEL_PLURAL %}
+            {% blocktrans %}{{ MODULE_CONTRIBUTIONS_LABEL_PLURAL }} Search{% endblocktrans %}
+        {% else %}
+            {% trans "Contributions Search" %}
+        {% endif %}
+    </h1>
 
     {% contribution_search %}
     {% autopaginate contributions 10 %}
 
-    <div class="contributions-wrap">
-    {% for contribution in contributions %}
-        {% has_perm user contributions.view_contribution contribution as can_view %}
-        {% if can_view %}
-        <div class="contribution-wrap">
-            <h2>
-                {{ contribution.content_type }}:
-                <a href="{{ contribution.object.get_absolute_url }}">{% firstof contribution.title "Untitled" %}</a>
-            </h2>
-            <div class="meta">
-                <div class="submitted">{% blocktrans with contribution.update_dt|date:"D d M Y P" as contrib_date and contribution.creator as contrib_creator %}Updated on {{ contrib_date }}
-                by {{ contrib_creator }} {% endblocktrans %}</div>
-            </div>
-        </div>
-        {% endif %}
-    {% empty %}
-        <div>{% trans "0 Results Found" %}</div>
-    {% endfor %}
-    </div>
+    <h4 class="capitalize">
+        <em>
+            {% if MODULE_CONTRIBUTIONS_LABEL_PLURAL and MODULE_CONTRIBUTIONS_LABEL %}
+                {% blocktrans count obj_count=paginator.count %}
+                    {{ obj_count }} {{ MODULE_CONTRIBUTIONS_LABEL }} Found
+                {% plural %}
+                    {{ obj_count }} {{ MODULE_CONTRIBUTIONS_LABEL_PLURAL }} Found
+                {% endblocktrans %}
+            {% else %}
+                {% blocktrans count obj_count=paginator.count %}
+                    {{ obj_count }} Contribution Found
+                {% plural %}
+                    {{ obj_count }} Contributions Found
+                {% endblocktrans %}
+            {% endif %}
+        </em>
+    </h4>
+
+    <section>
+        {% for contribution in contributions %}
+            {% search_result contribution %}
+        {% endfor %}
+    </section>
 
     {% paginate %}
-</div>
 {% endblock %}

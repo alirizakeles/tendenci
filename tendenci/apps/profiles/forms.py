@@ -9,17 +9,17 @@ from django.forms.extras.widgets import SelectDateWidget
 from django.utils.safestring import mark_safe
 from django.conf import settings
 
-from tendenci.core.base.fields import SplitDateTimeField
-from tendenci.core.base.fields import EmailVerificationField, CountrySelectField
-from tendenci.core.base.utils import normalize_field_names
-from tendenci.core.perms.forms import TendenciBaseForm
-from tendenci.core.site_settings.utils import get_setting
+from tendenci.apps.base.fields import SplitDateTimeField
+from tendenci.apps.base.fields import EmailVerificationField, CountrySelectField
+from tendenci.apps.base.utils import normalize_field_names
+from tendenci.apps.perms.forms import TendenciBaseForm
+from tendenci.apps.site_settings.utils import get_setting
 from tendenci.apps.user_groups.models import Group, GroupMembership
-from tendenci.addons.memberships.models import MembershipDefault
-from tendenci.core.event_logs.models import EventLog
+from tendenci.apps.memberships.models import MembershipDefault
+from tendenci.apps.event_logs.models import EventLog
 from tendenci.apps.profiles.models import Profile, UserImport
 from tendenci.apps.profiles.utils import get_groups, get_memberships, group_choices, update_user
-from tendenci.core.base.utils import get_languages_with_local_name
+from tendenci.apps.base.utils import get_languages_with_local_name
 
 attrs_dict = {'class': 'required' }
 THIS_YEAR = datetime.date.today().year
@@ -618,6 +618,12 @@ class UserGroupsForm(forms.Form):
 
 
 class ValidatingPasswordChangeForm(auth.forms.PasswordChangeForm):
+    def __init__(self, user, *args, **kwargs):
+        super(ValidatingPasswordChangeForm, self).__init__(user, *args, **kwargs)
+
+        self.fields['old_password'].widget = forms.PasswordInput(attrs={'class': 'form-control'})
+        self.fields['new_password1'].widget = forms.PasswordInput(attrs={'class': 'form-control'})
+        self.fields['new_password2'].widget = forms.PasswordInput(attrs={'class': 'form-control'})
 
     def clean_new_password1(self):
         password1 = self.cleaned_data.get('new_password1')
@@ -724,17 +730,15 @@ class UserUploadForm(forms.ModelForm):
                ('first_name,last_name,phone', _('First Name and Last Name and Phone')),
                ('first_name,last_name,company', _('First Name and Last Name and Company')),
                ('username', 'Username'),)
-    GROUP_CHOICES = [(0, _('Select One'))] + [(group.id, group.name) for group in \
-                     Group.objects.filter(status=True, status_detail='active'
-                                          ).exclude(type='membership')]
+    
     interactive = forms.BooleanField(widget=forms.RadioSelect(
                                     choices=((True, _('Interactive')),
-                                            (False,_('Not Interactive (no login)')),)),
-                                  initial=True,)
+                                            (False, _('Not Interactive (no login)')),)),
+                                  initial=False, required=False)
     key = forms.ChoiceField(label="Key",
                             choices=KEY_CHOICES)
     group_id = forms.ChoiceField(label=_("Add Users to Group"),
-                            choices=GROUP_CHOICES, required=False)
+                            required=False)
     clear_group_membership = forms.BooleanField(initial=False, required=False)
 
     class Meta:
@@ -751,6 +755,12 @@ class UserUploadForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super(UserUploadForm, self).__init__(*args, **kwargs)
         self.fields['key'].initial = 'email'
+        # move the choices down here to fix the error 
+        #  django.db.utils.ProgrammingError: relation "user_groups_group" does not exist
+        GROUP_CHOICES = [(0, _('Select One'))] + [(group.id, group.name) for group in \
+                     Group.objects.filter(status=True, status_detail='active'
+                                          ).exclude(type='membership')]
+        self.fields['group_id'].choices = GROUP_CHOICES
 
     def clean_upload_file(self):
         key = self.cleaned_data['key']

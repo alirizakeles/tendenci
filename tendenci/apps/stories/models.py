@@ -1,20 +1,20 @@
 import uuid
 
-from parse_uri import ParseUri
+from urlparse import urlparse
 
 from django.db import models
 from tendenci.apps.user_groups.models import Group
 from tendenci.apps.user_groups.utils import get_default_group
 from django.utils.translation import ugettext_lazy as _
-from django.contrib.contenttypes import generic
+from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.contenttypes.models import ContentType
 
-from tendenci.core.perms.object_perms import ObjectPermission
-from tendenci.core.categories.models import CategoryItem
-from tendenci.core.site_settings.utils import get_setting
+from tendenci.apps.perms.object_perms import ObjectPermission
+from tendenci.apps.categories.models import CategoryItem
+from tendenci.apps.site_settings.utils import get_setting
 from tagging.fields import TagField
-from tendenci.core.files.models import File, file_directory
-from tendenci.core.perms.models import TendenciBaseModel
+from tendenci.apps.files.models import File, file_directory
+from tendenci.apps.perms.models import TendenciBaseModel
 from tendenci.apps.stories.managers import StoryManager
 from tendenci.libs.abstracts.models import OrderingBaseModel
 
@@ -37,14 +37,18 @@ class Story(OrderingBaseModel, TendenciBaseModel):
     guid = models.CharField(max_length=40)
     title = models.CharField(max_length=200, blank=True)
     content = models.TextField(blank=True)
-    syndicate = models.BooleanField(_('Include in RSS feed'))
+    syndicate = models.BooleanField(_('Include in RSS feed'), default=False)
     full_story_link = models.CharField(_('Full Story Link'), max_length=300, blank=True)
     link_title = models.CharField(_('Link Title'), max_length=200, blank=True)
     start_dt = models.DateTimeField(_('Start Date/Time'), null=True, blank=True)
     end_dt = models.DateTimeField(_('End Date/Time'), null=True, blank=True)
     expires = models.BooleanField(_('Expires'), default=True)
-    image = models.ForeignKey('StoryPhoto',
-        help_text=_('Photo that represents this story.'), null=True, default=None)
+    image = models.ForeignKey(
+        'StoryPhoto',
+        help_text=_('Photo that represents this story.'),
+        null=True,
+        default=None
+    )
     group = models.ForeignKey(Group, null=True, default=get_default_group, on_delete=models.SET_NULL)
     tags = TagField(blank=True, default='')
 
@@ -52,11 +56,11 @@ class Story(OrderingBaseModel, TendenciBaseModel):
         help_text=_('The rotator where this story belongs.'))
     rotator_position = models.IntegerField(_('Rotator Position'), default=0, blank=True)
 
-    categories = generic.GenericRelation(CategoryItem,
+    categories = GenericRelation(CategoryItem,
                                           object_id_field="object_id",
                                           content_type_field="content_type")
 
-    perms = generic.GenericRelation(ObjectPermission,
+    perms = GenericRelation(ObjectPermission,
                                           object_id_field="object_id",
                                           content_type_field="content_type")
 
@@ -66,6 +70,7 @@ class Story(OrderingBaseModel, TendenciBaseModel):
         permissions = (("view_story", _("Can view story")),)
         verbose_name_plural = _("stories")
         ordering = ['position']
+        app_label = 'stories'
 
     def __unicode__(self):
         return self.title
@@ -85,9 +90,9 @@ class Story(OrderingBaseModel, TendenciBaseModel):
         url = reverse("story", args=[self.pk])
         if self.full_story_link:
             url = self.full_story_link
-            parsed_url = ParseUri().parse(url)
+            o = urlparse(url)
 
-            if not parsed_url.protocol:  # if relative URL
+            if not o.scheme:  # if relative URL
                 url = '%s%s' % (get_setting('site', 'global', 'siteurl'), url)
 
         return url
@@ -145,9 +150,15 @@ class Story(OrderingBaseModel, TendenciBaseModel):
 class StoryPhoto(File):
     pass
 
+    class Meta:
+        app_label = 'stories'
+
 
 class Rotator(models.Model):
     name = models.CharField(max_length=200)
+
+    class Meta:
+        app_label = 'stories'
 
     def __unicode__(self):
         return self.name

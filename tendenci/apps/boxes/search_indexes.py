@@ -1,18 +1,22 @@
 from haystack import indexes
-from haystack import site
+
 
 from django.utils.html import strip_tags, strip_entities
 
 from tendenci.apps.boxes.models import Box
-from tendenci.core.perms.indexes import TendenciBaseSearchIndex
+from tendenci.apps.perms.indexes import TendenciBaseSearchIndex
 
 
-class BoxIndex(TendenciBaseSearchIndex):
+class BoxIndex(TendenciBaseSearchIndex, indexes.Indexable):
     title = indexes.CharField(model_attr='title')
     content = indexes.CharField(model_attr='content')
 
     # RSS fields
     order = indexes.DateTimeField()
+
+    @classmethod
+    def get_model(self):
+        return Box
 
     def prepare_content(self, obj):
         content = obj.content
@@ -23,4 +27,4 @@ class BoxIndex(TendenciBaseSearchIndex):
     def prepare_order(self, obj):
         return obj.update_dt
 
-site.register(Box, BoxIndex)
+

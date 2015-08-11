@@ -10,9 +10,8 @@
 <link rel="stylesheet" href="{{ STATIC_URL }}css/profiles.css">
 {% endblock %}
 
-{% block body %}
+{% block content %}
 <div class="t">
-    {% users_nav request.user None %}
     <h1>{% trans "Profiles Export - Status" %}</h1>
 
     <div id="profile-export">
@@ -20,7 +19,7 @@
         <div{% if not download_ready %} class="display-hide"{% endif %}>
             <p>{% trans 'The export file is ready, click the download link below to download.' %}</p>
             <div>
-                <a href="{% url profile.export_download identifier %}">{% trans 'Download Now' %}</a>
+                <a href="{% url "profile.export_download" identifier %}">{% trans 'Download Now' %}</a>
             </div>
         </div>
 

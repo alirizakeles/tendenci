@@ -17,12 +17,12 @@
 </tr>
 {% for user in entry_list %}
 <tr class="{% cycle 'odd' '' %}">
-    <td><a href="{% url profile user.username %}">{{ user.username }}</a></td>
+    <td><a href="{% url "profile" user.username %}">{{ user.username }}</a></td>
     <td>{{ user.pk }}</td>
     <td>{{ user.last_name }}</td>
     <td>{{ user.first_name }}</td>
     <td>{{ user.email|obfuscate_email }}</td>
-    <td><a href="{% url invoices %}?search_criteria=owner_id&search_text={{ user.pk }}&search_method=exact">{{ user.profile.total_spend|format_currency }}</a></td>
+    <td><a href="{% url "invoices" %}?search_criteria=owner_id&search_text={{ user.pk }}&search_method=exact">{{ user.profile.total_spend|format_currency }}</a></td>
 </tr>
 {% endfor %}
 </table>

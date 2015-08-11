@@ -1,5 +1,5 @@
 from tendenci.apps.boxes.models import Box
-from tendenci.core.perms.forms import TendenciBaseForm
+from tendenci.apps.perms.forms import TendenciBaseForm
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 from tinymce.widgets import TinyMCE
@@ -8,7 +8,7 @@ class BoxForm(TendenciBaseForm):
     content = forms.CharField(required=False,
         widget=TinyMCE(attrs={'style':'width:100%'},
         mce_attrs={'storme_app_label':Box._meta.app_label,
-        'storme_model':Box._meta.module_name.lower()}))
+        'storme_model':Box._meta.model_name.lower()}))
 
     status_detail = forms.ChoiceField(
         choices=(('active',_('Active')),('inactive',_('Inactive')),))

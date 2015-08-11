@@ -2,18 +2,18 @@ import uuid
 
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
-from django.contrib.contenttypes import generic
+from django.contrib.contenttypes.fields import GenericRelation
 from django.core.urlresolvers import reverse
 
 from tagging.fields import TagField
 from tinymce import models as tinymce_models
-from tendenci.core.meta.models import Meta as MetaTags
-from tendenci.core.categories.models import CategoryItem
+from tendenci.apps.meta.models import Meta as MetaTags
+from tendenci.apps.categories.models import CategoryItem
 
-from tendenci.core.base.fields import SlugField
-from tendenci.core.perms.models import TendenciBaseModel
-from tendenci.core.perms.object_perms import ObjectPermission
-from tendenci.core.files.models import File
+from tendenci.apps.base.fields import SlugField
+from tendenci.apps.perms.models import TendenciBaseModel
+from tendenci.apps.perms.object_perms import ObjectPermission
+from tendenci.apps.files.models import File
 from tendenci.apps.user_groups.utils import get_default_group
 from tendenci.apps.pages.managers import PageManager
 from tendenci.apps.pages.module_meta import PageMeta
@@ -27,17 +27,18 @@ class BasePage(TendenciBaseModel):
     slug = SlugField(_('URL Path'))
     header_image = models.ForeignKey('HeaderImage', null=True)
     content = tinymce_models.HTMLField()
-    view_contact_form = models.BooleanField()
+    view_contact_form = models.BooleanField(default=False)
     design_notes = models.TextField(_('Design Notes'), blank=True)
-    syndicate = models.BooleanField(_('Include in RSS feed'))
+    syndicate = models.BooleanField(_('Include in RSS feed'), default=False)
     template = models.CharField(_('Template'), max_length=50, blank=True)
     tags = TagField(blank=True)
     meta = models.OneToOneField(MetaTags, null=True)
-    categories = generic.GenericRelation(CategoryItem,
+    categories = GenericRelation(CategoryItem,
         object_id_field="object_id", content_type_field="content_type")
 
     class Meta:
         abstract = True
+        app_label = 'pages'
 
     def save(self, *args, **kwargs):
         if not self.guid:
@@ -95,13 +96,14 @@ class Page(BasePage):
     contributor_type = models.IntegerField(choices=CONTRIBUTOR_CHOICES,
                                            default=CONTRIBUTOR_AUTHOR)
     google_profile = models.URLField(_('Google+ URL'), blank=True)
-    perms = generic.GenericRelation(ObjectPermission,
+    perms = GenericRelation(ObjectPermission,
                                       object_id_field="object_id",
                                       content_type_field="content_type")
     objects = PageManager()
 
     class Meta:
         permissions = (("view_page", _("Can view page")),)
+        app_label = 'pages'
 
     def get_meta(self, name):
         """
@@ -130,3 +132,6 @@ class Page(BasePage):
 
 class HeaderImage(File):
     pass
+
+    class Meta:
+        app_label = 'pages'

@@ -15,7 +15,7 @@
     </style>
 {% endblock %}
 
-{% block body %}
+{% block content %}
 
     <h1>{% trans 'Group Members Export - Status' %}</h1>
     <p style="font-size: 1.1em;">{% trans 'Group' %}: <strong>{{ group.name }}</strong></p>
@@ -25,12 +25,12 @@
        <div id="display-content"{% if not download_ready %} class="display-hide"{% endif %}>
        <p>{% trans 'The export file is ready, click the download link below to download.' %}</p>
        <div>
-           <a href="{% url group.members_export_download group.slug, export_target, identifier %}">{% trans 'Download Now' %}</a>
+           <a href="{% url "group.members_export_download" group.slug export_target identifier %}">{% trans 'Download Now' %}</a>
        </div>
        <div>&nbsp;</div>
        <div>&nbsp;</div>
        <div>
-           <a href="{% url group.detail group.slug %}">{% trans "Back to Group" %} &raquo;</a>
+           <a href="{% url "group.detail" group.slug %}">{% trans "Back to Group" %} &raquo;</a>
        </div>
        </div>
 

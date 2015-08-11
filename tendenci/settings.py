@@ -8,7 +8,8 @@ TENDENCI_ROOT = os.path.abspath(os.path.dirname(__file__))
 SITE_ADDONS_PATH = ''
 
 DEBUG = False
-TEMPLATE_DEBUG = DEBUG
+
+ALLOWED_HOSTS = ['*']
 
 ADMINS = ()
 
@@ -25,7 +26,7 @@ EMAIL_PORT = 25
 """
 
 # user agent for external retrieval of files/images
-TENDENCI_USER_AGENT = 'Tendenci/5.0 +http://www.tendenci.com'
+TENDENCI_USER_AGENT = 'Tendenci/6.0 +https://www.tendenci.com'
 
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
@@ -65,14 +66,6 @@ MEDIA_URL = '/site_media/media/'
 SECRET_KEY = 's$6*!=msW0__=51^w@_tbaconjm4+fg@0+ic#bx^3rj)zc$a6i'
 SITE_SETTINGS_KEY = "FhAiPZWDoxnY0TrakVEFplu2sd3DIli6"
 
-## Django 1.4
-TEMPLATE_LOADERS = (
-    'tendenci.core.theme.template_loaders.load_template_source',
-    'django.template.loaders.filesystem.Loader',
-    'django.template.loaders.app_directories.Loader',
-    #'django.template.loaders.eggs.load_template_source',
-)
-
 MIDDLEWARE_CLASSES = (
     'django.middleware.gzip.GZipMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -81,20 +74,20 @@ MIDDLEWARE_CLASSES = (
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'tendenci.libs.swfupload.middleware.SSLRedirectMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
-    'johnny.middleware.LocalStoreClearMiddleware',
-    'johnny.middleware.QueryCacheMiddleware',
+#     'johnny.middleware.LocalStoreClearMiddleware',
+#     'johnny.middleware.QueryCacheMiddleware',
     'tendenci.apps.profiles.middleware.ProfileLanguageMiddleware',
     'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'pagination.middleware.PaginationMiddleware',
     'tendenci.apps.profiles.middleware.ForceLogoutProfileMiddleware',
     'tendenci.apps.profiles.middleware.ProfileMiddleware',
-    'tendenci.core.base.middleware.Http403Middleware',
+    'tendenci.apps.base.middleware.Http403Middleware',
     'tendenci.apps.redirects.middleware.RedirectMiddleware',
-    'tendenci.core.mobile.middleware.MobileMiddleware',
-    'tendenci.core.theme.middleware.RequestMiddleware',
-    'tendenci.core.base.middleware.MissingAppMiddleware',
-    'tendenci.addons.memberships.middleware.ExceededMaxTypesMiddleware',
+    'tendenci.apps.mobile.middleware.MobileMiddleware',
+    'tendenci.apps.theme.middleware.RequestMiddleware',
+    'tendenci.apps.base.middleware.MissingAppMiddleware',
+    'tendenci.apps.memberships.middleware.ExceededMaxTypesMiddleware',
 )
 
 ROOT_URLCONF = 'tendenci.urls'
@@ -129,138 +122,157 @@ STATICFILES_DIRS = (
 
 # Avatar default URL, no Gravatars
 AVATAR_GRAVATAR_BACKUP = False
-AVATAR_DEFAULT_URL = STATIC_URL + 'images/icons/default-user-80.jpg'
+AVATAR_DEFAULT_URL = '/images/icons/default-user-80.jpg'
 AUTO_GENERATE_AVATAR_SIZES = (128, 80, 48,)
 
 # default image url (relative to the static folder)
 DEFAULT_IMAGE_URL = 'images/default-photo.jpg'
 
-# TEMPLATE DIRECTORIES AND PROCESSORS
+# TEMPLATES
+TEMPLATES = [
+    {
+     'BACKEND': 'django.template.backends.django.DjangoTemplates',
+#      'APP_DIRS': True,
+     'DIRS': [
+            os.path.join(TENDENCI_ROOT, "themes"),
+            os.path.join(TENDENCI_ROOT, "templates"),
+            # Put strings here, like "/home/html/django_templates"
+            # or "C:/www/django/templates".
+            # Always use forward slashes, even on Windows.
+            # Don't forget to use absolute paths, not relative paths.
+            ],
+     'OPTIONS': {
+        'context_processors': [
+                'django.contrib.auth.context_processors.auth',
+                'django.template.context_processors.debug',
+                'django.template.context_processors.i18n',
+                'django.template.context_processors.media',
+                'django.template.context_processors.request',
+                'django.contrib.messages.context_processors.messages',
+            
+                # tendenci context processors
+                'tendenci.apps.theme.context_processors.theme',
+                'tendenci.apps.site_settings.context_processors.settings',
+                'tendenci.apps.site_settings.context_processors.app_dropdown',
+                'tendenci.apps.base.context_processors.static_url',
+                'tendenci.apps.base.context_processors.index_update_note',
+                'tendenci.apps.base.context_processors.today',
+                'tendenci.apps.base.context_processors.site_admin_email',
+                'tendenci.apps.base.context_processors.user_classification',
+                'tendenci.apps.base.context_processors.display_name',
+                'tendenci.apps.registry.context_processors.registered_apps',
+                'tendenci.apps.registry.context_processors.enabled_addons',
+                ],
+         'loaders':  [
+                'app_namespace.Loader',
+                'tendenci.apps.theme.template_loaders.Loader',
+                #'tendenci.apps.theme.template_loaders.load_template_source',
+                'django.template.loaders.filesystem.Loader',
+                'django.template.loaders.app_directories.Loader',
+                #'django.template.loaders.eggs.load_template_source',
+            ],
+         'debug': DEBUG
+        }
+     }                
+]
 
-TEMPLATE_DIRS = (
-    os.path.join(TENDENCI_ROOT, "themes"),
-    os.path.join(TENDENCI_ROOT, "templates"),
-    # Put strings here, like "/home/html/django_templates"
-    # or "C:/www/django/templates".
-    # Always use forward slashes, even on Windows.
-    # Don't forget to use absolute paths, not relative paths.
-)
-
-TEMPLATE_CONTEXT_PROCESSORS = (
-    'django.contrib.auth.context_processors.auth',
-    'django.core.context_processors.debug',
-    'django.core.context_processors.i18n',
-    'django.core.context_processors.media',
-    'django.core.context_processors.request',
-    'django.contrib.messages.context_processors.messages',
-
-    # tendenci context processors
-    'tendenci.core.theme.context_processors.theme',
-    'tendenci.core.site_settings.context_processors.settings',
-    'tendenci.core.base.context_processors.static_url',
-    'tendenci.core.base.context_processors.index_update_note',
-    'tendenci.core.base.context_processors.today',
-    'tendenci.core.base.context_processors.site_admin_email',
-    'tendenci.core.registry.context_processors.registered_apps',
-)
 
 INSTALLED_APPS = (
+    'django_admin_bootstrapped',
+    'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.sites',
-    'django.contrib.admin',
     'django.contrib.humanize',
     'django.contrib.sitemaps',
     'django.contrib.messages',
-    'django.contrib.formtools',
     'django.contrib.admindocs',
     'django.contrib.staticfiles',
 
     # applications
+    'formtools',
+    'bootstrap3',
     'pagination',
     'tagging',
     'avatar',
     'tinymce',
     'haystack',
     'captcha',
-    'south',
-    'tastypie',
+    #'tastypie',
     'tendenci',
     'tendenci.libs.model_report',
 
     'tendenci.apps.entities',
-    'tendenci.core.base',
-    'tendenci.core.site_settings',
+    'tendenci.apps.base',
+    'tendenci.apps.site_settings',
     'tendenci.apps.contributions',
     'tendenci.apps.search',
     'tendenci.apps.notifications',
     'tendenci.apps.registration',
-    'tendenci.core.registry',
-    'tendenci.core.api_tasty',
+    'tendenci.apps.registry',
+    'tendenci.apps.api_tasty',
     'tendenci.apps.invoices',
-    'tendenci.core.payments',
-    'tendenci.addons.recurring_payments',
+    'tendenci.apps.payments',
+    'tendenci.apps.recurring_payments',
     'tendenci.apps.forms_builder.forms',
-    'tendenci.apps.pluginmanager',
     'tendenci.apps.accounts',
-    'tendenci.core.files',
+    'tendenci.apps.files',
     'tendenci.apps.user_groups',
-    'tendenci.core.perms',
+    'tendenci.apps.perms',
     'tendenci.apps.profiles',
-    'tendenci.core.meta',
-    'tendenci.core.tags',
-    'tendenci.addons.articles',
-    'tendenci.addons.jobs',
-    'tendenci.addons.news',
+    'tendenci.apps.meta',
+    'tendenci.apps.tags',
+    'tendenci.apps.articles',
+    'tendenci.apps.jobs',
+    'tendenci.apps.news',
     'tendenci.apps.stories',
     'tendenci.apps.pages',
-    'tendenci.addons.events',
-    'tendenci.addons.photos',
-    'tendenci.addons.memberships',
-    'tendenci.addons.corporate_memberships',
-    'tendenci.addons.locations',
-    'tendenci.addons.industries',
-    'tendenci.addons.regions',
-    'tendenci.addons.educations',
-    'tendenci.addons.careers',
-    'tendenci.core.site_settings',
-    'tendenci.addons.make_payments',
+    'tendenci.apps.events',
+    'tendenci.apps.photos',
+    'tendenci.apps.memberships',
+    'tendenci.apps.corporate_memberships',
+    'tendenci.apps.locations',
+    'tendenci.apps.industries',
+    'tendenci.apps.regions',
+    'tendenci.apps.educations',
+    'tendenci.apps.careers',
+    'tendenci.apps.make_payments',
     'tendenci.apps.accountings',
-    'tendenci.core.emails',
-    'tendenci.core.email_blocks',
-    'tendenci.apps.subscribers',
+    'tendenci.apps.emails',
+    'tendenci.apps.email_blocks',
+    #'tendenci.apps.subscribers',
     'tendenci.apps.contacts',
-    'tendenci.core.robots',
-    'tendenci.core.versions',
-    'tendenci.core.event_logs',
-    'tendenci.core.categories',
+    'tendenci.apps.robots',
+    'tendenci.apps.versions',
+    'tendenci.apps.event_logs',
+    'tendenci.apps.categories',
     'tendenci.apps.theme_editor',
     'tendenci.libs.styled_forms',
-    'tendenci.core.newsletters',
+    'tendenci.apps.newsletters',
     'tendenci.apps.redirects',
-    'tendenci.addons.directories',
-    'tendenci.addons.help_files',
-    'tendenci.addons.resumes',
+    'tendenci.apps.directories',
+    'tendenci.apps.help_files',
+    'tendenci.apps.resumes',
     'tendenci.apps.boxes',
-    'tendenci.core.mobile',
-    'tendenci.addons.social_auth',
-    'tendenci.addons.campaign_monitor',
+    'tendenci.apps.mobile',
+    'tendenci.apps.social_auth',
+    'tendenci.apps.campaign_monitor',
     'tendenci.apps.wp_importer',
     'tendenci.apps.wp_exporter',
-    'tendenci.core.theme',
+    'tendenci.apps.theme',
     'tendenci.apps.discounts',
     'tendenci.apps.metrics',
     'tendenci.apps.navs',
-    'tendenci.addons.tendenci_guide',
-    'tendenci.core.exports',
-    'tendenci.addons.events.ics',
-    'tendenci.core.imports',
-    'tendenci.core.handler404',
+    'tendenci.apps.tendenci_guide',
+    'tendenci.apps.exports',
+    'tendenci.apps.events.ics',
+    'tendenci.apps.imports',
+    'tendenci.apps.handler404',
     'tendenci.apps.reports',
     'tendenci.apps.dashboard',
-    'tendenci.addons.social_media',
-    'tendenci.addons.announcements',
+    'tendenci.apps.social_media',
+    'tendenci.apps.announcements',
     # celery task system, must stay at the bottom of installed apps
     'djkombu',
     'djcelery',
@@ -274,10 +286,9 @@ ACCOUNT_ACTIVATION_DAYS = 7
 
 LOGIN_REDIRECT_URL = '/dashboard'
 
-AUTH_PROFILE_MODULE = 'profiles.Profile'
 AUTHENTICATION_BACKENDS = (
-    'tendenci.core.perms.backend.ObjectPermBackend',
-    'tendenci.addons.social_auth.backends.facebook.FacebookBackend',
+    'tendenci.apps.perms.backend.ObjectPermBackend',
+    'tendenci.apps.social_auth.backends.facebook.FacebookBackend',
     'django.contrib.auth.backends.ModelBackend',
 )
 
@@ -320,7 +331,7 @@ LANGUAGES = sorted(global_settings.LANGUAGES + tuple([
 # DEBUG TOOLBAR
 #--------------------------------------------------
 INTERNAL_IPS = ('127.0.0.1', '192.168.0.1', '10.1.0.0', '10.1.4.0',)
-DEBUG_TOOLBAR_CONFIG = {'INTERCEPT_REDIRECTS': False,}
+DEBUG_TOOLBAR_PATCH_SETTINGS = False
 
 # -------------------------------------- #
 # THEMES
@@ -409,10 +420,13 @@ USE_SUBPROCESS = True
 # --------------------------------------#
 # Hackstack Search
 # --------------------------------------#
-HAYSTACK_SITECONF = 'tendenci.apps.search'
-HAYSTACK_SEARCH_ENGINE = 'simple'
+HAYSTACK_CONNECTIONS = {
+    'default': {
+        'ENGINE': 'haystack.backends.simple_backend.SimpleEngine',
+    }
+}
+
 HAYSTACK_SEARCH_RESULTS_PER_PAGE = 10
-HAYSTACK_SOLR_TIMEOUT = 20
 
 # HAYSTACK_INDEX_LIMITS - row amount to index per core application
 # Override for rebuild_index command exists in base core app
@@ -421,6 +435,7 @@ HAYSTACK_INDEX_LIMITS = {
 }
 
 INDEX_FILE_CONTENT = False
+HAYSTACK_SIGNAL_PROCESSOR = 'tendenci.apps.search.signals.QueuedSignalProcessor'
 
 # --------------------------------------#
 # PAYMENT GATEWAYS
@@ -429,7 +444,7 @@ MERCHANT_LOGIN = ""
 MERCHANT_TXN_KEY = ""
 
 # AUTHORIZE.NET
-AUTHNET_POST_URL = "https://secure.authorize.net/gateway/transact.dll"
+AUTHNET_POST_URL = "https://secure2.authorize.net/gateway/transact.dll"
 AUTHNET_MD5_HASH_VALUE = ''
 
 # FIRSTDATA
@@ -523,3 +538,26 @@ MAX_MEMBERSHIP_TYPES = 10
 # indexes are being used.
 #-------------------------------------------------------#
 INDEX_UPDATE_NOTE = 'updated hourly'
+
+# ----------------------------------- #
+# Django Admin Bootstrap
+# ------------------------------------#
+DAB_FIELD_RENDERER = 'django_admin_bootstrapped.renderers.BootstrapFieldRenderer'
+
+from django.contrib import messages
+
+MESSAGE_TAGS = {
+            messages.SUCCESS: 'alert-success success',
+            messages.WARNING: 'alert-warning warning',
+            messages.ERROR: 'alert-danger error'
+}
+
+# -------------------------------------- #
+# EMAIL Settings for Newsletters
+# -------------------------------------- #
+NEWSLETTER_EMAIL_HOST = None
+NEWSLETTER_EMAIL_PORT = 587     # 587 is the default for mailgun
+NEWSLETTER_EMAIL_HOST_USER = ''
+NEWSLETTER_EMAIL_HOST_PASSWORD = ''
+NEWSLETTER_EMAIL_USE_TLS = True
+NEWSLETTER_EMAIL_BACKEND = 'tendenci.apps.emails.backends.NewsletterEmailBackend'

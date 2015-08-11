@@ -9,7 +9,7 @@ from tempfile import NamedTemporaryFile
 from django.conf import settings
 from django.db.models import Avg, Max, Min, Count
 from django.db.models.fields.related import ManyToManyField, ForeignKey
-from django.contrib.contenttypes import generic
+from django.contrib.contenttypes.fields import GenericRelation
 from django.http import HttpResponse
 from django.utils.encoding import smart_str
 from django.template.defaultfilters import yesno
@@ -17,7 +17,7 @@ from django.core.files.storage import default_storage
 from celery.task import Task
 from celery.registry import tasks
 
-from tendenci.core.exports.utils import full_model_to_dict, render_csv
+from tendenci.apps.exports.utils import full_model_to_dict, render_csv
 from tendenci.apps.forms_builder.forms.models import Form
 
 
@@ -133,7 +133,7 @@ class FormEntriesExportTask(Task):
 
     def run(self, form_instance, entries, include_files, **kwargs):
 
-        response = HttpResponse(mimetype='text/csv')
+        response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename=export_entries_%d.csv' % time()
         headers = []
         has_files = form_instance.has_files() and include_files

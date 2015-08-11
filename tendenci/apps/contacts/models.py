@@ -1,11 +1,11 @@
 import uuid
 from django.db import models
 from django.contrib.auth.models import User
-from django.contrib.contenttypes import generic
+from django.contrib.contenttypes.fields import GenericRelation
 from django.utils.translation import ugettext_lazy as _
 
-from tendenci.core.perms.object_perms import ObjectPermission
-from tendenci.core.perms.models import TendenciBaseModel
+from tendenci.apps.perms.object_perms import ObjectPermission
+from tendenci.apps.perms.models import TendenciBaseModel
 from timezones.fields import TimeZoneField
 from tendenci.apps.contacts.managers import ContactManager
 
@@ -17,6 +17,9 @@ class Address(models.Model):
     zipcode = models.CharField(max_length=100, blank=True)
     country = models.CharField(max_length=100, blank=True)
 
+    class Meta:
+        app_label = 'contacts'
+
     def city_state(self):
         return [s for s in (self.city, self.state) if s]
 
@@ -24,14 +27,21 @@ class Address(models.Model):
 class Phone(models.Model):
     number = models.CharField(max_length=50, blank=True)
 
+    class Meta:
+        app_label = 'contacts'
+
 
 class Email(models.Model):
     email = models.EmailField()
 
+    class Meta:
+        app_label = 'contacts'
 
 class URL(models.Model):
     url = models.URLField()
 
+    class Meta:
+        app_label = 'contacts'
 
 class Company(models.Model):
     name = models.CharField(max_length=200, blank=True)
@@ -40,6 +50,8 @@ class Company(models.Model):
     emails = models.ManyToManyField(Email, blank=True)
     urls = models.ManyToManyField(URL, blank=True)
 
+    class Meta:
+        app_label = 'contacts'
 
 class Comment(models.Model):
     """
@@ -53,6 +65,8 @@ class Comment(models.Model):
     update_dt = models.DateTimeField(auto_now=True)
     create_dt = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        app_label = 'contacts'
 
 class Contact(TendenciBaseModel):
     """
@@ -78,7 +92,7 @@ class Contact(TendenciBaseModel):
 
     message = models.TextField()
 
-    perms = generic.GenericRelation(ObjectPermission,
+    perms = GenericRelation(ObjectPermission,
         object_id_field="object_id", content_type_field="content_type")
 
     # TODO: consider attachments
@@ -87,6 +101,7 @@ class Contact(TendenciBaseModel):
 
     class Meta:
         permissions = (("view_contact", _("Can view contact")),)
+        app_label = 'contacts'
 
     @models.permalink
     def get_absolute_url(self):
@@ -99,4 +114,7 @@ class Contact(TendenciBaseModel):
         super(Contact, self).save(*args, **kwargs)
 
     def __unicode__(self):
-        return "%s %s" % (self.first_name, self.last_name)
+        if self.first_name:
+            return '%s %s' % (self.first_name, self.last_name)
+        else:
+            return '%s' % self.user

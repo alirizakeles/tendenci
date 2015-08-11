@@ -2,7 +2,7 @@ from django.conf import settings
 from django.contrib import admin
 from django.utils.translation import ugettext_lazy as _
 
-from tendenci.core.perms.admin import TendenciBaseModelAdmin
+from tendenci.apps.perms.admin import TendenciBaseModelAdmin
 
 from tendenci.apps.navs.forms import NavForm, ItemAdminForm
 from tendenci.apps.navs.models import Nav, NavItem
@@ -14,6 +14,12 @@ class ItemAdmin(admin.TabularInline):
     extra = 0
     ordering = ("position",)
     template = 'admin/navs/edit_inline/tabular.html'
+
+    def formfield_for_dbfield(self, db_field, **kwargs):
+        formfield = super(ItemAdmin, self).formfield_for_dbfield(db_field, **kwargs)
+        if db_field.name == 'page':
+            formfield.choices = formfield.choices
+        return formfield
 
 
 class NavAdmin(TendenciBaseModelAdmin):

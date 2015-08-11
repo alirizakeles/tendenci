@@ -3,7 +3,7 @@ import re
 from django import forms
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.contrib.auth.forms import SetPasswordForm
+from django.contrib.auth.forms import SetPasswordForm, PasswordChangeForm
 from django.contrib.auth import authenticate, login
 from django.contrib import messages
 from django.utils.translation import ugettext_lazy as _, ugettext
@@ -11,46 +11,55 @@ from django.utils.safestring import mark_safe
 from django.contrib.auth.tokens import default_token_generator
 from django.template import Context, loader
 from django.utils.http import int_to_base36
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 
-from johnny.cache import invalidate
-from captcha.fields import CaptchaField
+#from johnny.cache import invalidate
+from captcha.fields import CaptchaField, CaptchaTextInput
 from tendenci.apps.registration.forms import RegistrationForm
 from tendenci.apps.profiles.models import Profile
 from tendenci.apps.registration.models import RegistrationProfile
-from tendenci.core.site_settings.utils import get_setting
+from tendenci.apps.site_settings.utils import get_setting
 from tendenci.apps.accounts.utils import send_registration_activation_email
-from tendenci.core.base.utils import create_salesforce_contact
+from tendenci.apps.base.utils import create_salesforce_contact
 
 
 class SetPasswordCustomForm(SetPasswordForm):
+    def __init__(self, *args, **kwargs):
+        super(SetPasswordCustomForm, self).__init__(*args, **kwargs)
+
+        self.fields['new_password1'].widget = forms.PasswordInput(attrs={'class': 'form-control'})
+        self.fields['new_password2'].widget = forms.PasswordInput(attrs={'class': 'form-control'})
+
     def clean_new_password1(self):
         new_password1 = self.cleaned_data.get('new_password1')
         password_regex = get_setting('module', 'users', 'password_requirements_regex')
         password_requirements = get_setting('module', 'users', 'password_text')
         if password_regex:
             if not re.match(password_regex, new_password1):
-                raise forms.ValidationError(mark_safe("The password does not meet the requirements </li><li>%s" % password_requirements))
+                raise forms.ValidationError(mark_safe("The password does not meet the requirements: %s" % password_requirements))
 
         return new_password1
 
 
 class RegistrationCustomForm(RegistrationForm):
-    first_name = forms.CharField(max_length=100)
-    last_name = forms.CharField(max_length=100)
-    company = forms.CharField(max_length=100, widget=forms.TextInput(attrs={'size':'40'}), required=False)
-    phone = forms.CharField(max_length=50, required=False)
-    address = forms.CharField(max_length=150, widget=forms.TextInput(attrs={'size':'40'}), required=False)
-    city = forms.CharField(max_length=50, required=False)
-    state = forms.CharField(max_length=50, widget=forms.TextInput(attrs={'size':'10'}), required=False)
-    country = forms.CharField(max_length=50, required=False)
-    zipcode = forms.CharField(max_length=50, required=False)
-    captcha = CaptchaField(label=_('Type the code below'))
+    first_name = forms.CharField(max_length=100, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    last_name = forms.CharField(max_length=100, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    company = forms.CharField(max_length=100, widget=forms.TextInput(attrs={'size':'40', 'class': 'form-control'}), required=False)
+    phone = forms.CharField(max_length=50, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    address = forms.CharField(max_length=150, widget=forms.TextInput(attrs={'size':'40', 'class': 'form-control'}), required=False)
+    city = forms.CharField(max_length=50, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    state = forms.CharField(max_length=50, widget=forms.TextInput(attrs={'size':'10', 'class': 'form-control'}), required=False)
+    country = forms.CharField(max_length=50, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    zipcode = forms.CharField(max_length=50, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    captcha = CaptchaField(label=_('Type the code below'), widget=CaptchaTextInput(attrs={'class': 'form-control'}))
 
     allow_same_email = None
     similar_email_found = False
 
     def __init__(self, *args, **kwargs):
         self.allow_same_email = kwargs.pop('allow_same_email', False)
+
         super(RegistrationCustomForm, self).__init__(*args, **kwargs)
 
     def clean_password1(self):
@@ -59,7 +68,7 @@ class RegistrationCustomForm(RegistrationForm):
         password_requirements = get_setting('module', 'users', 'password_text')
         if password_regex:
             if not re.match(password_regex, password1):
-                raise forms.ValidationError(mark_safe(_("The password does not meet the requirements </li><li>%(p)s" % {'p': password_requirements })))
+                raise forms.ValidationError(mark_safe(_("The password does not meet the requirements: %(p)s" % {'p': password_requirements })))
 
         return password1
 
@@ -119,8 +128,8 @@ class RegistrationCustomForm(RegistrationForm):
 
 class LoginForm(forms.Form):
 
-    username = forms.CharField(label=_("Username"), max_length=30, widget=forms.TextInput())
-    password = forms.CharField(label=_("Password"), widget=forms.PasswordInput(render_value=False))
+    username = forms.CharField(label=_("Username"), max_length=30, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    password = forms.CharField(label=_("Password"), widget=forms.PasswordInput(render_value=False, attrs={'class': 'form-control'}))
     #remember = forms.BooleanField(label=_("Remember Me"), help_text=_("If checked you will stay logged in for 3 weeks"), required=False)
     remember = forms.BooleanField(label=_("Remember Login"), required=False)
 
@@ -142,12 +151,12 @@ class LoginForm(forms.Form):
     def clean(self):
         if self._errors:
             return
-        invalidate('auth_user')
+        #invalidate('auth_user')
         user = authenticate(username=self.cleaned_data["username"], password=self.cleaned_data["password"])
 
         if user:
             try:
-                profile = user.get_profile()
+                profile = user.profile
             except Profile.DoesNotExist:
                 profile = Profile.objects.create_profile(user=user)
 
@@ -181,7 +190,7 @@ class LoginForm(forms.Form):
         return False
 
 class PasswordResetForm(forms.Form):
-    email = forms.EmailField(label=_("E-mail"), max_length=75)
+    email = forms.EmailField(label=_("E-mail"), max_length=75, widget=forms.TextInput(attrs={'class': 'form-control'}))
 
     def clean_email(self):
         """
@@ -214,7 +223,7 @@ class PasswordResetForm(forms.Form):
         user_list = []
         for user in self.users_cache:
             user_list.append({
-                    'uid': int_to_base36(user.id),
+                    'uid': urlsafe_base64_encode(force_bytes(user.pk)),
                     'user': user,
                     'token': token_generator.make_token(user),
                 })

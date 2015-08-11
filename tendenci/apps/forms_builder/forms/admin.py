@@ -5,7 +5,7 @@ from mimetypes import guess_type
 
 
 from django.conf import settings
-from django.conf.urls.defaults import patterns, url
+from django.conf.urls import patterns, url
 from django.contrib import admin
 from django.contrib.admin.util import unquote
 from django.core.files.base import ContentFile
@@ -16,8 +16,8 @@ from django.shortcuts import get_object_or_404
 from django.template.defaultfilters import slugify
 from django.utils.translation import ugettext_lazy as _
 
-from tendenci.core.perms.admin import TendenciBaseModelAdmin
-from tendenci.core.site_settings.utils import get_setting
+from tendenci.apps.perms.admin import TendenciBaseModelAdmin
+from tendenci.apps.site_settings.utils import get_setting
 
 from tendenci.apps.forms_builder.forms.models import Form, Field, FormEntry, FieldEntry, Pricing
 from tendenci.apps.forms_builder.forms.forms import FormAdminForm, FormForField, PricingForm
@@ -46,6 +46,8 @@ class PricingAdmin(admin.StackedInline):
 class FieldAdminForm(FormForField):
     class Meta:
         model = Field
+        # django 1.8 requires either 'fields' or 'exclude' for ModelForm
+        exclude = ()
 
 
 class FieldAdmin(admin.TabularInline):
@@ -155,7 +157,7 @@ class FormAdmin(TendenciBaseModelAdmin):
         Output a CSV file to the browser containing the entries for the form.
         """
         form = get_object_or_404(Form, id=form_id)
-        response = HttpResponse(mimetype="text/csv")
+        response = HttpResponse(content_type="text/csv")
         csvname = "%s-%s.csv" % (form.slug, slugify(datetime.now().ctime()))
         response["Content-Disposition"] = "attachment; filename=%s" % csvname
         csv = writer(response)
@@ -228,7 +230,7 @@ class FormAdmin(TendenciBaseModelAdmin):
         data = default_storage.open(field.value).read()
         f = ContentFile(data)
 
-        response = HttpResponse(f.read(), mimetype=mime_type)
+        response = HttpResponse(f.read(), content_type=mime_type)
         response['Content-Disposition'] = 'filename=%s' % base_name
         return response
 

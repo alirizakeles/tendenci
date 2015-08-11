@@ -5,8 +5,8 @@ from django.db.models import Manager
 from django.db.models import Q
 from django.contrib.auth.models import User, AnonymousUser
 
-from tendenci.core.perms.managers import TendenciBaseManager
-from tendenci.core.site_settings.utils import get_global_setting
+from tendenci.apps.perms.managers import TendenciBaseManager
+from tendenci.apps.site_settings.utils import get_global_setting
 
 
 class GroupManager(TendenciBaseManager):
@@ -22,13 +22,14 @@ class GroupManager(TendenciBaseManager):
 
     def get_or_create_default(self, user=AnonymousUser()):
         from tendenci.apps.entities.models import Entity
-        from tendenci.core.site_settings.utils import get_global_setting
+        from tendenci.apps.site_settings.utils import get_global_setting
         group = self.first()
         if not group:
             entity = Entity.objects.first()
             if not entity:
                 entity = Entity.objects.get_or_create_default(user)
             params = {'name': get_global_setting('sitedisplayname') or 'Tendenci',
+                  'dashboard_url': '',
                   'entity': entity,
                   'type': 'distribution',
                   'email_recipient': get_global_setting('sitecontactemail'),

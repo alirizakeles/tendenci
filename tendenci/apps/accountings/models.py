@@ -8,13 +8,16 @@ class Acct(models.Model):
     account_number = models.IntegerField(unique=True)
     description = models.TextField()
     type = models.CharField(max_length=5)
+    
+    class Meta:
+        app_label = 'accountings'
 
 
 class AcctEntry(models.Model):
     source = models.TextField()
     object_id = models.IntegerField()
     entry_dt = models.DateTimeField(auto_now_add=True)
-    exported = models.BooleanField(default=0)
+    exported = models.BooleanField(default=False)
     create_dt = models.DateTimeField(auto_now_add=True)
     creator = models.ForeignKey(User, related_name="accentry_creator",
                                  null=True,
@@ -27,6 +30,9 @@ class AcctEntry(models.Model):
     status = models.BooleanField(default=True)
 
     objects = AcctEntryManager()
+
+    class Meta:
+        app_label = 'accountings'
 
 
 class AcctTran(models.Model):
@@ -46,6 +52,9 @@ class AcctTran(models.Model):
     status = models.BooleanField(default=True)
 
     objects = AcctTranManager()
+
+    class Meta:
+        app_label = 'accountings'
 
     @property
     def debit(self):

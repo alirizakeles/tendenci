@@ -14,10 +14,8 @@
 <link rel="stylesheet" href="{{ STATIC_URL }}css/invoices.css">
 {% endblock %}
 
-{% block body %}
+{% block content %}
 <div class="t">
-
-    {% invoice_nav invoice %}
     <h1>{% blocktrans with invoice.pk as invoice_pk %}Mark Invoice #{{ invoice_pk }} as Paid{% endblocktrans %}</h1>
 
     {% with invoice.get_object as object %}
@@ -32,7 +30,7 @@
               <td>{% trans "Invoice For" %}</td>
               <td class="td-right">
           {% if object.event.pk %}
-              <a href="{% url event.registration_confirmation object.event.pk object.pk %}">{{ object }}</a><br>
+              <a href="{% url "event.registration_confirmation" object.event.pk object.pk %}">{{ object }}</a><br>
           <strong>Event Date:</strong> {{ object.event.start_dt }}
               {% else %}
           {{ SITE_GLOBAL_SITEDISPLAYNAME }}

@@ -12,15 +12,14 @@
 <link rel="stylesheet" href="{{ STATIC_URL }}css/invoices.css">
 {% endblock %}
 
-{% block body %}
+{% block content %}
 <div class="t">
-    {% invoice_nav  invoice %}
     <h1>{% blocktrans with invoice.id as invoice_id %}Accounting Entries View for Invoice {{ invoice_id }}{% endblocktrans %}</h1>
 
     <div class="invoice-detail">
         <p>{% blocktrans with invoice.id as invoice_id %}A summary of the accounting entries for invoice {{ invoice_id }} is below.{% endblocktrans %}</p>
 
-        <div>{% trans "Invoice:" %} <a href="{% url invoice.view invoice.id %}">{{ invoice.id  }}</a></div>
+        <div>{% trans "Invoice:" %} <a href="{% url "invoice.view" invoice.id %}">{{ invoice.id  }}</a></div>
         {% if acct_entries %}
             <table width="550px">
             <tr>
@@ -68,7 +67,7 @@
             </table>
         </div>
 
-        <div style="margin-top: 1em;"><a href="{% url accounting.account_numbers %}">{% trans "View All Account Numbers" %}</a></div>
+        <div style="margin-top: 1em;"><a href="{% url "accounting.account_numbers" %}">{% trans "View All Account Numbers" %}</a></div>
     </div>
 
 </div>

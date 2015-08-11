@@ -2,22 +2,22 @@ from django.core.urlresolvers import reverse
 from django.db import models
 from django.utils.translation import ugettext, ugettext_lazy as _
 from django.contrib.auth.models import User
-from django.contrib.contenttypes import generic
+from django.contrib.contenttypes.fields import GenericRelation
 
 from django.shortcuts import get_object_or_404
 
-from django_countries.countries import COUNTRIES
+from django_countries import countries as COUNTRIES
 from localflavor.us.us_states import STATE_CHOICES
 from localflavor.ca.ca_provinces import PROVINCE_CHOICES
 
 from tendenci.apps.forms_builder.forms.settings import FIELD_MAX_LENGTH, LABEL_MAX_LENGTH
 from tendenci.apps.forms_builder.forms.managers import FormManager
-from tendenci.core.perms.models import TendenciBaseModel
-from tendenci.core.perms.object_perms import ObjectPermission
+from tendenci.apps.perms.models import TendenciBaseModel
+from tendenci.apps.perms.object_perms import ObjectPermission
 from tendenci.apps.user_groups.models import Group, GroupMembership
-from tendenci.core.site_settings.utils import get_setting
-from tendenci.core.base.fields import EmailVerificationField
-from tendenci.core.base.utils import checklist_update
+from tendenci.apps.site_settings.utils import get_setting
+from tendenci.apps.base.fields import EmailVerificationField
+from tendenci.apps.base.utils import checklist_update
 from tendenci.apps.redirects.models import Redirect
 from tendenci.libs.abstracts.models import OrderingBaseModel
 
@@ -32,9 +32,10 @@ FIELD_CHOICES = (
     ("CharField", _("Text")),
     ("CharField/django.forms.Textarea", _("Paragraph Text")),
     ("BooleanField", _("Checkbox")),
-    ("ChoiceField", _("Choose from a list")),
+    ("ChoiceField/django.forms.RadioSelect", _("Single-select - Radio Button")),
+    ("ChoiceField", _("Single-select - From a List")),
     ("MultipleChoiceField/django.forms.CheckboxSelectMultiple", _("Multi-select - Checkboxes")),
-    ("MultipleChoiceField", _("Multi-select - Select Many")),
+    ("MultipleChoiceField", _("Multi-select - From a List")),
     ("EmailVerificationField", _("Email")),
     ("CountryField", _("Countries")),
     ("StateProvinceField", _("States/Provinces")),
@@ -48,6 +49,7 @@ FIELD_CHOICES = (
 
 FIELD_FUNCTIONS = (
     ("GroupSubscription", _("Subscribe to Group")),
+    ("GroupSubscriptionAuto", _("Subscribe to Group")),
     ("EmailFirstName", _("First Name")),
     ("EmailLastName", _("Last Name")),
     ("EmailFullName", _("Full Name")),
@@ -118,7 +120,7 @@ class Form(TendenciBaseModel):
         help_text=_("If checked, please add pricing options below. Leave the price blank if users can enter their own amount. Please also add an email field as a required field with type 'email'"))
     payment_methods = models.ManyToManyField("payments.PaymentMethod", blank=True)
 
-    perms = generic.GenericRelation(ObjectPermission,
+    perms = GenericRelation(ObjectPermission,
         object_id_field="object_id", content_type_field="content_type")
 
     # positions for displaying the fields
@@ -140,6 +142,7 @@ class Form(TendenciBaseModel):
         verbose_name = _("Form")
         verbose_name_plural = _("Forms")
         permissions = (("view_form", _("Can view form")),)
+        app_label = 'forms'
 
     def __unicode__(self):
         return self.title
@@ -188,6 +191,12 @@ class FieldManager(models.Manager):
     def visible(self):
         return self.filter(visible=True)
 
+    """
+    Get all Auto-fields. (As of writing, this is only GroupSubscriptionAuto)
+    """
+    def auto_fields(self):
+        return self.filter(visible=False, field_function="GroupSubscriptionAuto")
+
 
 class Field(OrderingBaseModel):
     """
@@ -221,6 +230,7 @@ class Field(OrderingBaseModel):
         verbose_name = _("Field")
         verbose_name_plural = _("Fields")
         #order_with_respect_to = "form"
+        app_label = 'forms'
 
     def __unicode__(self):
         return self.label
@@ -258,11 +268,11 @@ class Field(OrderingBaseModel):
         return choices
 
     def execute_function(self, entry, value, user=None):
-        if self.field_function == "GroupSubscription":
+        if self.field_function in ["GroupSubscription", "GroupSubscriptionAuto"]:
             if value:
                 for val in self.choices.split(','):
                     group, created = Group.objects.get_or_create(name=val.strip())
-                    if user:
+                    if user and group.allow_self_add:
                         try:
                             group_membership = GroupMembership.objects.get(group=group, member=user)
                         except GroupMembership.DoesNotExist:
@@ -292,6 +302,7 @@ class FormEntry(models.Model):
     class Meta:
         verbose_name = _("Form entry")
         verbose_name_plural = _("Form entries")
+        app_label = 'forms'
 
     def __unicode__(self):
         return unicode(self.id)
@@ -413,7 +424,7 @@ class FormEntry(models.Model):
         return description
 
     def set_group_subscribers(self):
-        for entry in self.fields.filter(field__field_function="GroupSubscription"):
+        for entry in self.fields.filter(field__field_function__in=["GroupSubscription", "GroupSubscriptionAuto"]):
             entry.field.execute_function(self, entry.value, user=self.creator)
 
 
@@ -429,6 +440,7 @@ class FieldEntry(models.Model):
     class Meta:
         verbose_name = _("Form field entry")
         verbose_name_plural = _("Form field entries")
+        app_label = 'forms'
 
     def __unicode__(self):
         return ('%s: %s' % (self.field.label, self.value))
@@ -476,6 +488,7 @@ class Pricing(models.Model):
 
     class Meta:
         ordering = ["pk"]
+        app_label = 'forms'
 
     def __unicode__(self):
         currency_symbol = get_setting("site", "global", "currencysymbol")
